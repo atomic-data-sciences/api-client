@@ -7,10 +7,8 @@ name = "atomicds"
 description = "API client for Atomic Data Sciences."
 dynamic = ["version"]
 readme = "README.md"
-license = "GPL-3.0-only"
-authors = [
-  { name = "Atomic Data Sciences", email = "info@atomicdatasciences.com" },
-]
+license = {text = "GPL-3.0-only"}
+authors = [{ name = "Atomic Data Sciences", email = "info@atomicdatasciences.com" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
