@@ -13,6 +13,7 @@ class RHEEDVideoResult(MSONable):
         timeseries_data: DataFrame,
         cluster_image_data: list[RHEEDImageResult] | None,
         snapshot_image_data: list[RHEEDImageResult] | None,
+        rotating: bool,
     ):
         """RHEED video result
 
@@ -24,11 +25,13 @@ class RHEEDVideoResult(MSONable):
                 images associated with each identified cluster in the video.
             snapshot_image_data (list[RHEEDImageResult]): List of RHEEDImageResult objects containing data for
                 images associated with each user extracted snapshot in the video.
+            rotating (bool): Whether the video was taken of a rotating stage.
         """
         self.data_id = data_id
         self.timeseries_data = timeseries_data
         self.cluster_image_data = cluster_image_data
         self.snapshot_image_data = snapshot_image_data
+        self.rotating = rotating
 
     def get_plot(self):
         # TODO: Implement

@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from io import BytesIO
 from typing import Literal
-from urllib.parse import urljoin
 
 import networkx as nx
 from pandas import DataFrame
@@ -174,6 +173,7 @@ class Client(BaseClient):
                 timeseries_data=timeseries_data,
                 cluster_image_data=cluster_image_results,
                 snapshot_image_data=extracted_image_results,
+                rotating=data_type == "rheed_rotating",
             )
 
         raise ValueError("Data type must be rheed_video, rheed_image, or xps")
