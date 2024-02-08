@@ -54,15 +54,14 @@ class Client(BaseClient):
             (DataFrame): Pandas DataFrame containing matched entries in the data catalogue.
 
         """
-        response = self.session.get(
-            url=urljoin(self.endpoint, "data_entries/catalogues"),
-            verify=True,
+        data = self._get(
+            sub_url="data_entries/catalogues",
             params={
                 "include_organization_data": include_organization_data,
                 "keywords": keywords,
             },
         )
-        return DataFrame(response.json())
+        return DataFrame(data)
 
     def get(
         self, data_ids: str | list[str]
