@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from io import BytesIO
 from typing import Literal
 
@@ -41,24 +42,52 @@ class Client(BaseClient):
         self,
         keywords: str | list[str] | None = None,
         include_organization_data: bool = True,
+        data_ids: str | list[str] | None = None,
+        data_type: Literal[
+            "rheed_image", "rheed_stationary", "rheed_rotating", "xps", "all"
+        ] = "all",
+        status: Literal["success", "pending", "error", "running", "all"] = "success",
+        growth_length: tuple[int | None, int | None] = (None, None),
+        upload_datetime: tuple[datetime | None, datetime | None] = (None, None),
+        last_accessed_datetime: tuple[datetime | None, datetime | None] = (None, None),
     ) -> DataFrame:
         """Search and obtain data catalogue entries
 
         Args:
-            keywords (str | list[str] | None): Keyword or list of keywords to search all data catalogue fields with. Defaults to None.
+            keywords (str | list[str] | None): Keyword or list of keywords to search all data catalogue fields with.
+                This searching is applied after all other explicit filters. Defaults to None.
             include_organization_data (bool): Whether to include catalogue entries from other users in
                 your organization. Defaults to True.
-
+            data_ids (str | list[str] | None): Data ID or list of data IDs. Defaults to None.
+            data_type (Literal["rheed_image", "rheed_stationary", "rheed_rotating", "xps", "all"]): Type of data. Defaults to "all".
+            status (Literal["success", "pending", "error", "running", "all"]): Analyzed status of the data. Defaults to "all".
+            growth_length (tuple[int | None, int | None]): Minimum and maximum values of the growth length in seconds.
+                Defaults to (None, None) which will include all non-video data.
+            upload_datetime (tuple[datetime | None, datetime | None]): Minimum and maximum values of the upload datetime.
+                Defaults to (None, None).
+            last_accessed_datetime (tuple[datetime | None, datetime | None]): Minimum and maximum values of the last accessed datetime.
+                Defaults to (None, None).
         Returns:
             (DataFrame): Pandas DataFrame containing matched entries in the data catalogue.
 
         """
+        params = {
+            "keywords": keywords,
+            "include_organization_data": include_organization_data,
+            "data_ids": data_ids,
+            "data_type": None if data_type == "all" else data_type,
+            "status": status,
+            "growth_length_min": growth_length[0],
+            "growth_length_max": growth_length[1],
+            "upload_datetime_min": upload_datetime[0],
+            "upload_datetime_max": upload_datetime[1],
+            "last_accessed_datetime_min": last_accessed_datetime[0],
+            "last_accessed_datetime_max": last_accessed_datetime[1],
+        }
+
         data = self._get(
-            sub_url="data_entries/catalogues",
-            params={
-                "include_organization_data": include_organization_data,
-                "keywords": keywords,
-            },
+            sub_url="data_entries/",
+            params=params,
         )
         return DataFrame(data)
 
