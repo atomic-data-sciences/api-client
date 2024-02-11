@@ -133,7 +133,7 @@ class Client(BaseClient):
 
         pbar = (
             tqdm(
-                desc="Obtaining analyzed data results",
+                desc="Obtaining data results",
                 total=len(data),
             )
             if not self.mute_bars
@@ -232,6 +232,8 @@ class Client(BaseClient):
             sub_url=f"data_entries/processed_data/{data_id}",
             params={"return_as": "url-download"},
         )
+
+        # Image is pulled from the S3 pre-signed URL
         image_bytes: bytes = self._get(  # type: ignore  # noqa: PGH003
             base_override=image_download["url"], sub_url="", deserialize=False
         )
