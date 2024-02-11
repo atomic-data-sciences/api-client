@@ -228,11 +228,14 @@ class Client(BaseClient):
         graph = nx.node_link_graph(graph_data, source="start_node", target="end_node")
 
         # Get raw and processed image data
-        image_bytes: bytes = self._get(  # type: ignore  # noqa: PGH003
+        image_download: dict[str, str] = self._get(  # type: ignore  # noqa: PGH003
             sub_url=f"data_entries/processed_data/{data_id}",
-            params={"return_as": "bytes"},
-            deserialize=False,
+            params={"return_as": "url-download"},
         )
+        image_bytes: bytes = self._get(  # type: ignore  # noqa: PGH003
+            base_override=image_download["url"], sub_url="", deserialize=False
+        )
+
         image_data = Image.open(BytesIO(image_bytes))
 
         return RHEEDImageResult(
