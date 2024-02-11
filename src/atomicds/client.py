@@ -89,7 +89,22 @@ class Client(BaseClient):
             sub_url="data_entries/",
             params=params,
         )
-        return DataFrame(data)
+        column_mapping = {
+            "uuid": "Data ID",
+            "upload_datetime": "Upload Datetime",
+            "last_accessed_datetime": "Last Accessed Datetime",
+            "char_source_type": "Type",
+            "raw_name": "File Name",
+            "pipeline_status": "Status",
+            "raw_file_type": "File Type",
+            "source_name": "Instrument Source",
+            "sample_name": "Sample Name",
+            "growth_length": "Growth Length",
+            "tags": "Tags",
+            "name": "Owner",
+        }
+        catalogue = DataFrame(data)
+        return catalogue.rename(columns=column_mapping)
 
     def get(
         self, data_ids: str | list[str]
