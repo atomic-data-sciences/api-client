@@ -46,6 +46,7 @@ class BaseClient:
         sub_url: str,
         params: dict[str, Any] | None = None,
         deserialize: bool = True,
+        base_override: str | None = None,
     ) -> list[dict] | dict | bytes:
         """Method for issuing a GET request
 
@@ -53,6 +54,7 @@ class BaseClient:
             sub_url (str): API sub-url to use.
             params (dict[str, Any] | None): Params to pass in the GET request. Defaults to None.
             deserialize (bool): Whether to JSON deserialize the response data or return raw bytes. Defaults to True.
+            base_overrise (str): Base URL to use instead of the default ADS API root URL.
 
         Raises:
             ClientError: If the response code returned is not within the range of 200-400.
@@ -61,8 +63,9 @@ class BaseClient:
             (list[dict] | dict | bytes): Deserialized JSON data or raw bytes.
 
         """
+        base_url = base_override or self.endpoint
         response = self.session.get(
-            url=urljoin(self.endpoint, sub_url), verify=True, params=params
+            url=urljoin(base_url, sub_url), verify=True, params=params
         )
         if not response.ok:
             raise ClientError(

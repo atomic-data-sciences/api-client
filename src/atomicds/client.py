@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from io import BytesIO
 from typing import Literal
-from urllib.parse import urljoin
 
 import networkx as nx
 from pandas import DataFrame
@@ -42,27 +42,69 @@ class Client(BaseClient):
         self,
         keywords: str | list[str] | None = None,
         include_organization_data: bool = True,
+        data_ids: str | list[str] | None = None,
+        data_type: Literal[
+            "rheed_image", "rheed_stationary", "rheed_rotating", "xps", "all"
+        ] = "all",
+        status: Literal["success", "pending", "error", "running", "all"] = "success",
+        growth_length: tuple[int | None, int | None] = (None, None),
+        upload_datetime: tuple[datetime | None, datetime | None] = (None, None),
+        last_accessed_datetime: tuple[datetime | None, datetime | None] = (None, None),
     ) -> DataFrame:
         """Search and obtain data catalogue entries
 
         Args:
-            keywords (str | list[str] | None): Keyword or list of keywords to search all data catalogue fields with. Defaults to None.
+            keywords (str | list[str] | None): Keyword or list of keywords to search all data catalogue fields with.
+                This searching is applied after all other explicit filters. Defaults to None.
             include_organization_data (bool): Whether to include catalogue entries from other users in
                 your organization. Defaults to True.
-
+            data_ids (str | list[str] | None): Data ID or list of data IDs. Defaults to None.
+            data_type (Literal["rheed_image", "rheed_stationary", "rheed_rotating", "xps", "all"]): Type of data. Defaults to "all".
+            status (Literal["success", "pending", "error", "running", "all"]): Analyzed status of the data. Defaults to "all".
+            growth_length (tuple[int | None, int | None]): Minimum and maximum values of the growth length in seconds.
+                Defaults to (None, None) which will include all non-video data.
+            upload_datetime (tuple[datetime | None, datetime | None]): Minimum and maximum values of the upload datetime.
+                Defaults to (None, None).
+            last_accessed_datetime (tuple[datetime | None, datetime | None]): Minimum and maximum values of the last accessed datetime.
+                Defaults to (None, None).
         Returns:
             (DataFrame): Pandas DataFrame containing matched entries in the data catalogue.
 
         """
-        response = self.session.get(
-            url=urljoin(self.endpoint, "data_entries/catalogues"),
-            verify=True,
-            params={
-                "include_organization_data": include_organization_data,
-                "keywords": keywords,
-            },
+        params = {
+            "keywords": keywords,
+            "include_organization_data": include_organization_data,
+            "data_ids": data_ids,
+            "data_type": None if data_type == "all" else data_type,
+            "status": status,
+            "growth_length_min": growth_length[0],
+            "growth_length_max": growth_length[1],
+            "upload_datetime_min": upload_datetime[0],
+            "upload_datetime_max": upload_datetime[1],
+            "last_accessed_datetime_min": last_accessed_datetime[0],
+            "last_accessed_datetime_max": last_accessed_datetime[1],
+        }
+
+        data = self._get(
+            sub_url="data_entries/",
+            params=params,
         )
-        return DataFrame(response.json())
+        column_mapping = {
+            "uuid": "Data ID",
+            "upload_datetime": "Upload Datetime",
+            "last_accessed_datetime": "Last Accessed Datetime",
+            "char_source_type": "Type",
+            "raw_name": "File Name",
+            "pipeline_status": "Status",
+            "raw_file_type": "File Type",
+            "source_name": "Instrument Source",
+            "sample_name": "Sample Name",
+            "growth_length": "Growth Length",
+            "tags": "Tags",
+            "name": "Owner",
+        }
+        catalogue = DataFrame(data)
+        return catalogue.rename(columns=column_mapping)
 
     def get(
         self, data_ids: str | list[str]
@@ -91,7 +133,7 @@ class Client(BaseClient):
 
         pbar = (
             tqdm(
-                desc="Obtaining analyzed data results",
+                desc="Obtaining data results",
                 total=len(data),
             )
             if not self.mute_bars
@@ -175,6 +217,7 @@ class Client(BaseClient):
                 timeseries_data=timeseries_data,
                 cluster_image_data=cluster_image_results,
                 snapshot_image_data=extracted_image_results,
+                rotating=data_type == "rheed_rotating",
             )
 
         raise ValueError("Data type must be rheed_video, rheed_image, or xps")
@@ -185,11 +228,16 @@ class Client(BaseClient):
         graph = nx.node_link_graph(graph_data, source="start_node", target="end_node")
 
         # Get raw and processed image data
-        image_bytes: bytes = self._get(  # type: ignore  # noqa: PGH003
+        image_download: dict[str, str] = self._get(  # type: ignore  # noqa: PGH003
             sub_url=f"data_entries/processed_data/{data_id}",
-            params={"return_as": "bytes"},
-            deserialize=False,
+            params={"return_as": "url-download"},
         )
+
+        # Image is pulled from the S3 pre-signed URL
+        image_bytes: bytes = self._get(  # type: ignore  # noqa: PGH003
+            base_override=image_download["url"], sub_url="", deserialize=False
+        )
+
         image_data = Image.open(BytesIO(image_bytes))
 
         return RHEEDImageResult(

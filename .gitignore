@@ -15,6 +15,10 @@ mp4tojpg/
 lightning_logs/
 backend/migrations/local_dev/*
 
+# Model Checkpoints and WandB
+*.ckpt
+wandb/
+artifacts/
 
 # Profiling outputs
 profiling/*.bin
@@ -31,6 +35,16 @@ cache/*
 # Mac stuff
 *DS_Store
 
+# Typescript
+node_modules/
+react-frontend/.next/
+react-frontend/.yarn/*
+!react-frontend/.yarn/patches/
+!react-frontend/.yarn/plugins/
+!react-frontend/.yarn/releases/
+!react-frontend/.yarn/sdks/
+!react-frontend/.yarn/versions/
+
 # Distribution / packaging
 .Python
 build/
@@ -39,6 +53,8 @@ dist/
 downloads/
 eggs/
 .eggs/
+# lib/
+# lib64/
 parts/
 sdist/
 var/
@@ -123,13 +139,6 @@ ipython_config.py
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-/backend/ads/pipelines/celery/worker_*
-worker_ready*
-worker_heartbeat*
-
 # SageMath parsed files
 *.sage.py
 
@@ -177,9 +186,3 @@ cython_debug/
 # Ruff cache
 .ruff_cache
 
-# Alembic local development migrations
-backend/migrations/local/*
-
-# Extra c# files
-backend/ads/core/scienta/bin
-backend/ads/core/scienta/obj
