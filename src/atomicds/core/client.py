@@ -47,7 +47,7 @@ class BaseClient:
         params: dict[str, Any] | None = None,
         deserialize: bool = True,
         base_override: str | None = None,
-    ) -> list[dict] | dict | bytes:
+    ) -> list[dict] | dict | bytes | None:
         """Method for issuing a GET request
 
         Args:
@@ -60,7 +60,7 @@ class BaseClient:
             ClientError: If the response code returned is not within the range of 200-400.
 
         Returns:
-            (list[dict] | dict | bytes): Deserialized JSON data or raw bytes.
+            (list[dict] | dict | bytes | None): Deserialized JSON data or raw bytes. Returns None if response is a 404.
 
         """
         base_url = base_override or self.endpoint
@@ -68,6 +68,9 @@ class BaseClient:
             url=urljoin(base_url, sub_url), verify=True, params=params
         )
         if not response.ok:
+            if response.status_code == 404:
+                return None
+
             raise ClientError(
                 f"Problem retrieving data from {sub_url} with parameters {params}"
             )
