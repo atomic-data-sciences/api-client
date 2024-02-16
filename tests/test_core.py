@@ -25,6 +25,7 @@ def test_core_get_ok(base_client):
     assert "time" in heartbeat_response
     assert "version" in heartbeat_response
 
+    # Test other kwargs 
     heartbeat_response_raw = base_client._get(sub_url="heartbeat/", deserialize=False)
     assert isinstance(heartbeat_response_raw, bytes)
 
@@ -40,6 +41,7 @@ def test_core_get_ok(base_client):
         
 
 def test_core_get_not_ok(base_client):
+    
     # Mocked response object
     class Response:
         def __init__(self, ok, status_code):
@@ -50,8 +52,10 @@ def test_core_get_not_ok(base_client):
     with mock.patch("requests.Session.get", return_value=Response(False, 404)) as get:
         heartbeat_response = base_client._get(sub_url="", params={"test": "test"}, base_override="test")
         assert heartbeat_response is None 
+        assert get.called
 
     # 400+
     with pytest.raises(ClientError, match="Problem retrieving data from"):
         with mock.patch("requests.Session.get", return_value=Response(False, 500)) as get:
             heartbeat_response = base_client._get(sub_url="", params={"test": "test"}, base_override="test")
+            assert get.called
