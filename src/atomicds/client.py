@@ -26,10 +26,12 @@ class Client(BaseClient):
         """
         Args:
             api_key (str | None): API key. Defaults to None which will try and pull from the ADS_API_KEY environment variable.
-            endpoint (str): Root API endpoint. Defaults to 'https://api.atomicdatasciences.com/'.
+            endpoint (str): Root API endpoint. Will prioritize pulling from the ADS_API_ENDPOINT environment variable.
+                If none provided it defaults to 'https://api.atomicdatasciences.com/'.
             mute_bars (bool): Whether to mute progress bars. Defaults to False.
         """
         api_key = api_key or os.environ.get("ADS_API_KEY")
+        endpoint = os.environ.get("ADS_API_ENDPOINT") or endpoint
 
         if api_key is None:
             raise ValueError("No valid ADS API key supplied")
@@ -191,9 +193,13 @@ class Client(BaseClient):
                         {"data_id": frame["image_uuid"], "metadata": metadata}
                     )
 
-                return self._multi_thread(
-                    self._get_rheed_image_result, kwargs_list=image_params
-                )
+                return [
+                    result
+                    for result in self._multi_thread(
+                        self._get_rheed_image_result, kwargs_list=image_params
+                    )
+                    if result
+                ]
 
             cluster_image_results = (
                 __obtain_frame_data(
@@ -225,13 +231,20 @@ class Client(BaseClient):
     def _get_rheed_image_result(self, data_id: str, metadata: dict | None = None):
         # Get pattern graph data
         graph_data = self._get(sub_url=f"spots/{data_id}")
-        graph = nx.node_link_graph(graph_data, source="start_node", target="end_node")
+        graph = (
+            nx.node_link_graph(graph_data, source="start_node", target="end_node")
+            if graph_data
+            else None
+        )
 
         # Get raw and processed image data
         image_download: dict[str, str] = self._get(  # type: ignore  # noqa: PGH003
             sub_url=f"data_entries/processed_data/{data_id}",
             params={"return_as": "url-download"},
         )
+
+        if image_download is None:
+            return None
 
         # Image is pulled from the S3 pre-signed URL
         image_bytes: bytes = self._get(  # type: ignore  # noqa: PGH003
