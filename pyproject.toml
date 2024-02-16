@@ -7,8 +7,10 @@ name = "atomicds"
 description = "API client for Atomic Data Sciences."
 dynamic = ["version"]
 readme = "README.md"
-license = {text = "GPL-3.0-only"}
-authors = [{ name = "Atomic Data Sciences", email = "info@atomicdatasciences.com" }]
+license = { text = "GPL-3.0-only" }
+authors = [
+  { name = "Atomic Data Sciences", email = "info@atomicdatasciences.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
@@ -28,12 +30,12 @@ dependencies = ["numpy", "pandas", "monty", "pillow", "networkx"]
 
 [project.optional-dependencies]
 dev = [
-  "black>=23.7.0",
-  "docformatter>=1.7.5",
-  "isort>=5.12.0",
-  "pytest>=7.4.0",
-  "pytest-cov>=3.0.0",
-  "ruff>=0.0.285",
+  "pytest",
+  "pytest-httpserver",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+  "types-requests",
 ]
 docs = []
 plotting = ["matplotlib", "plotly"]
