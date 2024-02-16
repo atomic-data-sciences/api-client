@@ -2,6 +2,7 @@ import os
 import pytest
 from requests import Session
 
+from tqdm.auto import tqdm
 from atomicds.core import BaseClient
 from unittest import mock
 
@@ -19,7 +20,6 @@ def test_core_get_session(base_client):
     assert isinstance(base_client.session, Session)
 
 def test_core_get_ok(base_client):
-
     heartbeat_response = base_client._get(sub_url="heartbeat/")
     assert heartbeat_response.get("status") == "OK"
     assert "time" in heartbeat_response
@@ -59,3 +59,15 @@ def test_core_get_not_ok(base_client):
         with mock.patch("requests.Session.get", return_value=Response(False, 500)) as get:
             heartbeat_response = base_client._get(sub_url="", params={"test": "test"}, base_override="test")
             assert get.called
+
+def test_core_multi_thread(base_client):
+    test_func = lambda x: x
+    kwargs_list = [{"x": True} for _ in range(8)]
+    results = base_client._multi_thread(test_func, kwargs_list)
+    assert results == [True]*8
+
+    # With progress bar
+    pbar = tqdm(total=8)
+    results = base_client._multi_thread(test_func, kwargs_list, pbar)
+    assert results == [True]*8
+
