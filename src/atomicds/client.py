@@ -26,10 +26,12 @@ class Client(BaseClient):
         """
         Args:
             api_key (str | None): API key. Defaults to None which will try and pull from the ADS_API_KEY environment variable.
-            endpoint (str): Root API endpoint. Defaults to 'https://api.atomicdatasciences.com/'.
+            endpoint (str): Root API endpoint. Will prioritize pulling from the ADS_API_ENDPOINT environment variable.
+                If none provided it defaults to 'https://api.atomicdatasciences.com/'.
             mute_bars (bool): Whether to mute progress bars. Defaults to False.
         """
         api_key = api_key or os.environ.get("ADS_API_KEY")
+        endpoint = os.environ.get("ADS_API_ENDPOINT") or endpoint
 
         if api_key is None:
             raise ValueError("No valid ADS API key supplied")
