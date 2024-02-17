@@ -125,7 +125,11 @@ class Client(BaseClient):
             data_ids = [data_ids]
 
         data: list[dict] = self._get(  # type: ignore  # noqa: PGH003
-            sub_url="data_entries/", params={"data_ids": data_ids}
+            sub_url="data_entries/",
+            params={
+                "data_ids": data_ids,
+                "include_organization_data": True,
+            },
         )
 
         kwargs_list = []
