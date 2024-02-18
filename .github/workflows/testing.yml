@@ -37,6 +37,7 @@ jobs:
           mypy --version
           rm -rf .mypy_cache
           mypy src/atomicds 
+          
   test:
     needs: lint
     strategy:
@@ -77,7 +78,7 @@ jobs:
           pytest -x
 
   auto-gen-release:
-    needs: [test]
+    needs: test
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.VERSION_BUMP_TOKEN }}
