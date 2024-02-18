@@ -37,7 +37,7 @@ jobs:
           mypy --version
           rm -rf .mypy_cache
           mypy src/atomicds 
-          
+
   test:
     needs: lint
     strategy:
@@ -72,7 +72,7 @@ jobs:
 
       - name: Test with pytest
         env:
-          ADS_API_KEY: ${{ secrets[env.API_KEY_NAME] }}
+          ADS_API_KEY: ${{ secrets.ADS_API_KEY] }}
         run: |
           pip install -e .
           pytest -x
@@ -81,7 +81,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.VERSION_BUMP_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
       - uses: rymndhng/release-on-push-action@v0.28.0
         with:
