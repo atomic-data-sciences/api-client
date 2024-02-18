@@ -29,7 +29,14 @@ requires-python = ">=3.9, <3.13"
 dependencies = ["numpy", "pandas", "monty", "pillow", "networkx"]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "pytest-httpserver", "ruff", "mypy"]
+dev = [
+  "pytest",
+  "pytest-httpserver",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+  "types-requests",
+]
 docs = []
 plotting = ["matplotlib", "plotly"]
 
