@@ -247,6 +247,7 @@ class Client(BaseClient):
 
         timeseries_data = timeseries_data.drop(
             columns=[
+                "cluster_mean",
                 "cluster_cdf",
                 "region_1_intensity",
                 "region_2_intensity",
