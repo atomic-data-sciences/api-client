@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+from json import JSONDecodeError
 import os
 import platform
 import sys
@@ -74,6 +75,9 @@ class BaseClient:
             raise ClientError(
                 f"Problem retrieving data from {sub_url} with parameters {params}"
             )
+        if len(response.content) == 0:
+            return None
+
         return response.json() if deserialize else response.content
 
     def _multi_thread(
