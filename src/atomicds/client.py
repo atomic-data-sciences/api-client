@@ -171,8 +171,8 @@ class Client(BaseClient):
             return self._get_rheed_image_result(data_id)
 
         if data_type in ["rheed_stationary", "rheed_rotating"]:
-            plot_data = self._get(sub_url=f"clusters/plot_data/{data_id}")
-            timeseries_data = DataFrame(plot_data)
+            # Get timeseries data
+            timeseries_data = self._get_rheed_timeseries_result(data_id)
 
             # Get cluster and extracted image data
             cluster_frames: list[dict] = self._get(  # type: ignore  # noqa: PGH003
@@ -232,6 +232,42 @@ class Client(BaseClient):
             )
 
         raise ValueError("Data type must be rheed_video, rheed_image, or xps")
+
+    def _get_rheed_timeseries_result(self, data_id: str):
+        # Get rheed video timeseries results
+        plot_data = self._get(sub_url=f"clusters/plot_data/{data_id}")
+        timeseries_data = DataFrame(plot_data)
+        timeseries_data["cluster_std"] = (
+            timeseries_data["cluster_mean_plus_std"] - timeseries_data["cluster_id"]
+        )
+        timeseries_data["first_order_intensity"] = (
+            timeseries_data["region_1_intensity"]
+            + timeseries_data["region_2_intensity"]
+        ) / 2.0
+
+        timeseries_data = timeseries_data.drop(
+            columns=[
+                "cluster_cdf",
+                "region_1_intensity",
+                "region_2_intensity",
+                "cluster_mean_plus_std",
+                "cluster_mean_minus_std",
+            ]
+        )
+
+        column_mapping = {
+            "real_time_seconds": "Time",
+            "cluster_id": "Cluster ID",
+            "cluster_std": "Cluster ID Uncertainty",
+            "relative_strain": "Relative Strain",
+            "cumulative_strain": "Cumulative Strain",
+            "oscillation_period_seconds": "Oscillation Period",
+            "spot_count": "Diffraction Spot Count",
+            "first_order_intensity": "First Order Intensity",
+            "region_0_intensity": "Specular Intensity",
+        }
+
+        return timeseries_data.rename(columns=column_mapping)
 
     def _get_rheed_image_result(self, data_id: str, metadata: dict | None = None):
         # Get pattern graph data
