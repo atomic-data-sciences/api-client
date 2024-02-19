@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 import networkx as nx
@@ -21,8 +22,8 @@ class RHEEDImageResult(MSONable):
         processed_image: Image,
         # parent_data_id: UUID | str | None,
         pattern_graph: Graph | None,
-        metadata: dict = {},
-        labels: dict = {}
+        metadata: Optional[dict] = None,
+        labels: Optional[dict] = None
     ):
         """RHEED image result
 
@@ -32,6 +33,11 @@ class RHEEDImageResult(MSONable):
             pattern_graph (Graph | None): NetworkX Graph object for the extracted diffraction pattern.
             metadata (dict): Generic metadata (e.g. timestamp, cluster_id, etc...).
         """
+        if labels is None:
+            labels = {}
+        if metadata is None:
+            metadata = {}
+
         self.data_id = data_id
         # self.parent_data_id = parent_data_id
         self.processed_image = processed_image
@@ -100,12 +106,14 @@ class RHEEDImageResult(MSONable):
 
 class RHEEDImageCollection(MSONable):
 
-    def __init__(self, rheed_images: list[RHEEDImageResult], labels: list[dict] = {}):
+    def __init__(self, rheed_images: list[RHEEDImageResult], labels: Optional[list[dict]] = None):
         """Collection of RHEED images
 
         Args:
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
         """
+        if labels is None:
+            labels = {}
         if len(labels) > 0 and len(labels) != len(rheed_images):
             raise ValueError("Labels must be the same length as the RHEED image collection.")
 
@@ -193,20 +201,20 @@ class RHEEDImageCollection(MSONable):
         ).reset_index(drop=True)
 
         label_df = pd.DataFrame.from_records([{"data_id": rheed_image.data_id} | rheed_image.labels for rheed_image in self.rheed_images])
-        feature_df = node_df.pivot(
+        feature_df = node_df.pivot_table(
             index="uuid", columns="node_id", values=node_feature_cols
         )
 
         feature_df.columns = feature_df.columns.to_flat_index()
-        feature_df = pd.merge(feature_df, label_df, left_index=True, right_on="data_id", how="inner")
+        feature_df = feature_df.merge(label_df, left_index=True, right_on="data_id", how="inner")
         feature_df = feature_df.rename(columns={col: (col, "") for col in label_df.columns})
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
 
-        keep_cols = node_feature_cols + list(set(key for rheed_image in self.rheed_images for key in rheed_image.labels.keys()))
+        keep_cols = node_feature_cols + list({key for rheed_image in self.rheed_images for key in rheed_image.labels})
         feature_df = feature_df[keep_cols]
 
         if streamline:
-            feature_df.dropna(inplace=True, axis=1)
+            feature_df = feature_df.dropna(axis=1)
 
         if normalize:
             # min max normalization

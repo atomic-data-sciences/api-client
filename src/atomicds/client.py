@@ -273,8 +273,10 @@ class Client(BaseClient):
 
         return timeseries_data.rename(columns=column_mapping)
 
-    def _get_rheed_image_result(self, data_id: str, metadata: dict = {}):
+    def _get_rheed_image_result(self, data_id: str, metadata: dict | None = None):
         # Get pattern graph data
+        if metadata is None:
+            metadata = {}
         graph_data = self._get(sub_url=f"spots/{data_id}")
         graph = (
             nx.node_link_graph(graph_data, source="start_node", target="end_node")
