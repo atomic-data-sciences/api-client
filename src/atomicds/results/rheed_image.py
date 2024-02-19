@@ -1,15 +1,16 @@
 from uuid import UUID
 
+import networkx as nx
 import numpy as np
+import pandas as pd
+import trackpy as tp
 from monty.json import MSONable
 from networkx import Graph
 from PIL import Image as PILImage
 from PIL import ImageDraw
 from PIL.Image import Image
 from pycocotools import mask
-import trackpy as tp
-import networkx as nx
-import pandas as pd
+
 tp.quiet()
 
 
@@ -107,16 +108,16 @@ class RHEEDImageCollection(MSONable):
         """
         if len(labels) > 0 and len(labels) != len(rheed_images):
             raise ValueError("Labels must be the same length as the RHEED image collection.")
-        
+
         # if labels are provided, add an ordering into pattern_id
         for idx, (rheed_image, label) in enumerate(zip(rheed_images, labels)):
             rheed_image.labels = rheed_image.labels | label
             for node in rheed_image.pattern_graph.nodes:
                 rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
-            
+
 
         self.rheed_images = rheed_images
-        
+
 
     def align_fingerprints(self):
         """Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering features across RHEED patterns, based on relative position to the center feature.
@@ -132,7 +133,7 @@ class RHEEDImageCollection(MSONable):
             ],
             axis=0,
         ).reset_index(drop=True)
-    
+
         labels, _ = pd.factorize(node_df["uuid"])
         node_df["pattern_id"] = labels
 
@@ -150,20 +151,20 @@ class RHEEDImageCollection(MSONable):
             mapping = dict(zip(split["node_id"], split["particle"]))
             rheed_image.pattern_graph = nx.relabel_nodes(rheed_image.pattern_graph, mapping)
             rheed_images.append(rheed_image)
-        
+
         self.rheed_images = rheed_images
 
         return linked_df
-    
+
 
     def featurize(self, streamline: bool = True, normalize: bool = True, **kwargs):
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
-        
+
         Returns:
             (pd.DataFrame): DataFrame of node features.
             (pd.DataFrame): DataFrame of edge features.
         """
-        
+
         node_feature_cols = [
             "spot_area",
             "streak_area",
@@ -195,18 +196,18 @@ class RHEEDImageCollection(MSONable):
         feature_df = node_df.pivot(
             index="uuid", columns="node_id", values=node_feature_cols
         )
-        
+
         feature_df.columns = feature_df.columns.to_flat_index()
         feature_df = pd.merge(feature_df, label_df, left_index=True, right_on="data_id", how="inner")
         feature_df = feature_df.rename(columns={col: (col, "") for col in label_df.columns})
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
-        
+
         keep_cols = node_feature_cols + list(set(key for rheed_image in self.rheed_images for key in rheed_image.labels.keys()))
         feature_df = feature_df[keep_cols]
-        
+
         if streamline:
             feature_df.dropna(inplace=True, axis=1)
-        
+
         if normalize:
             # min max normalization
             feature_df = (feature_df - feature_df.min()) / (feature_df.max() - feature_df.min())

@@ -1,4 +1,4 @@
-from .rheed_image import RHEEDImageResult, RHEEDImageCollection
+from .rheed_image import RHEEDImageCollection, RHEEDImageResult
 from .rheed_video import RHEEDVideoResult
 from .xps import XPSResult
 
