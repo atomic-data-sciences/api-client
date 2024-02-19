@@ -39,7 +39,7 @@ class BaseClient:
         """Session under which HTTP requests are issued"""
         if not self._session:
             self._session = self._create_session(self.api_key)
-        return self._session
+        return self._session  # type: ignore  # noqa: PGH003
 
     def _get(
         self,
