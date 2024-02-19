@@ -26,7 +26,17 @@ classifiers = [
   "Operating System :: MacOS",
 ]
 requires-python = ">=3.9, <3.13"
-dependencies = ["numpy", "pandas", "monty", "pillow", "networkx"]
+dependencies = [
+  "numpy",
+  "pandas",
+  "monty",
+  "pillow",
+  "networkx",
+  "requests",
+  "tqdm",
+  "matplotlib",
+  "pycocotools",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -38,7 +48,6 @@ dev = [
   "types-requests",
 ]
 docs = []
-plotting = ["matplotlib", "plotly"]
 
 [tool.setuptools.package-data]
 template = ["py.typed"]
