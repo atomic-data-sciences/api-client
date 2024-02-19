@@ -95,16 +95,24 @@ class RHEEDImageResult(MSONable):
 
 class RHEEDImageCollection(MSONable):
 
-    def __init__(self, rheed_images: list[RHEEDImageResult]):
+    def __init__(self, rheed_images: list[RHEEDImageResult], labels: list[dict] = {}):
         """Collection of RHEED images
 
         Args:
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
         """
+        if len(labels) > 0 and len(labels) != len(rheed_images):
+            raise ValueError("Labels must be the same length as the RHEED image collection.")
+        elif len(labels) > 0 and len(labels) == len(rheed_images):
+            for rheed_image, label in zip(rheed_images, labels):
+                # label = {f"label_{k}": v for k, v in label.items()}
+                rheed_image.metadata | label
+
         self.rheed_images = rheed_images
+        
 
     def align_fingerprints(self):
-        """Align a collection of RHEED fingerprints by relabeling the node_ids to maximally identify the same scattering features across RHEED patterns.
+        """Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering features across RHEED patterns, based on relative position to the center feature.
         """
         image_scales = [rheed_image.processed_image.size for rheed_image in self.rheed_images]
         image_scale = np.amax(image_scales, axis=0)
