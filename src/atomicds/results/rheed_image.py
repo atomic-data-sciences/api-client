@@ -95,9 +95,17 @@ class RHEEDImageResult(MSONable):
 
 class RHEEDImageCollection(MSONable):
 
+    def __init__(self, rheed_images: list[RHEEDImageResult]):
+        """Collection of RHEED images
+
+        Args:
+            rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
+        """
+        self.rheed_images = rheed_images
 
     def align_fingerprints(self):
-
+        """Align a collection of RHEED fingerprints by relabeling the node_ids to maximally identify the same scattering features across RHEED patterns.
+        """
         image_scales = [rheed_image.processed_image.size for rheed_image in self.rheed_images]
         image_scale = np.amax(image_scales, axis=0)
         data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
@@ -134,7 +142,13 @@ class RHEEDImageCollection(MSONable):
     
 
     def featurize(self):
-
+        """Featurize the RHEED image collection into a dataframe of node features and edge features.
+        
+        Returns:
+            (pd.DataFrame): DataFrame of node features.
+            (pd.DataFrame): DataFrame of edge features.
+        """
+        
         node_feature_cols = [
             "spot_area",
             "streak_area",
@@ -152,7 +166,15 @@ class RHEEDImageCollection(MSONable):
         ]
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        feature_df = self.node_df.dataframe.pivot(
+        node_df = pd.concat(
+            [
+                pd.DataFrame.from_dict(dict(rheed_image.pattern_graph.nodes(data=True)), orient='index')
+                for rheed_image in self.rheed_images
+            ],
+            axis=0,
+        ).reset_index(drop=True)
+
+        feature_df = node_df.pivot(
             index="pattern_id", columns="node_id", values=node_feature_cols
         )
         # adjacency_df = adjacency_df.dataframe.pivot(
