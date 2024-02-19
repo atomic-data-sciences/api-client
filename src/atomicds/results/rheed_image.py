@@ -7,6 +7,9 @@ from PIL import Image as PILImage
 from PIL import ImageDraw
 from PIL.Image import Image
 from pycocotools import mask
+import trackpy as tp
+import networkx as nx
+import pandas as pd
 
 
 class RHEEDImageResult(MSONable):
@@ -29,6 +32,7 @@ class RHEEDImageResult(MSONable):
         self.processed_image = processed_image
         self.pattern_graph = pattern_graph
         self.metadata = metadata
+        self.labels = None
 
     def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True) -> Image:
         """Get diffraction pattern image with optional overlays
@@ -87,3 +91,74 @@ class RHEEDImageResult(MSONable):
                 image.paste(overlay, mask=overlay)
 
         return image
+
+
+class RHEEDImageCollection(MSONable):
+
+
+    def align_fingerprints(self):
+
+        image_scales = [rheed_image.processed_image.size for rheed_image in self.rheed_images]
+        image_scale = np.amax(image_scales, axis=0)
+        data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
+
+        node_df = pd.concat(
+            [
+                pd.DataFrame.from_dict(dict(rheed_image.pattern_graph.nodes(data=True)), orient='index')
+                for rheed_image in self.rheed_images
+            ],
+            axis=0,
+        ).reset_index(drop=True)
+    
+        labels, _ = pd.factorize(node_df["uuid"])
+        node_df["pattern_id"] = labels
+
+        linked_df = tp.link(
+            f=node_df,
+            search_range=np.sqrt(np.sum(np.square(image_scale))) * 0.05,
+            memory=len(data_ids),
+            t_column="pattern_id",
+            pos_columns=["relative_centroid_1", "relative_centroid_0"],
+        )
+
+        rheed_images = []
+        splits = [group for _, group in linked_df.groupby("pattern_id")]
+        for split, rheed_image in zip(splits, self.rheed_images):
+            mapping = dict(zip(split["node_id"], split["particle"]))
+            rheed_image.pattern_graph = nx.relabel_nodes(rheed_image.pattern_graph, mapping)
+            rheed_images.append(rheed_image)
+        
+        self.rheed_images = rheed_images
+
+        return linked_df
+    
+
+    def featurize(self):
+
+        node_feature_cols = [
+            "spot_area",
+            "streak_area",
+            "relative_centroid_0",
+            "relative_centroid_1",
+            "intensity_centroid_0",
+            "intensity_centroid_1",
+            "fwhm_0",
+            "fwhm_1",
+            "area",
+            "eccentricity",
+            "center_distance",
+            "axis_major_length",
+            "axis_minor_length",
+        ]
+        # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
+
+        feature_df = self.node_df.dataframe.pivot(
+            index="pattern_id", columns="node_id", values=node_feature_cols
+        )
+        # adjacency_df = adjacency_df.dataframe.pivot(
+        #     index="pattern_id", columns=["start_node", "end_node"], values=edge_feature_cols
+        # )
+
+        self.feature_df = feature_df
+
+        return feature_df  # , adjacency_df
