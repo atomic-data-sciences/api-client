@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from monty.json import MSONable
 from pandas import DataFrame
 
@@ -34,7 +35,12 @@ class RHEEDVideoResult(MSONable):
         self.snapshot_image_data = snapshot_image_data
         self.rotating = rotating
 
-    def get_plot(self):
+    def get_plot(self) -> Figure:
+        """Get plot of timeseries data associated with this RHEED video
+
+        Returns:
+            (Figure): Matplotlib Figure object containing plot data
+        """
         fig, axes = plt.subplots(nrows=6, sharex=True, figsize=(10, 10))
 
         time = self.timeseries_data["Time"]

@@ -38,6 +38,11 @@ class XPSResult(MSONable):
         self.elements_manually_set = elements_manually_set
 
     def get_plot(self) -> Figure:
+        """Get plot of X-ray Photoelectron Spectrum
+
+        Returns:
+            (Figure): Matplotlib Figure object containing plot data
+        """
         # TODO: Add option to include peak identification data
         # TODO: Add option for different backend including plotly for interactivity
         x = self.binding_energies
