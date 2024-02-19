@@ -86,7 +86,7 @@ exclude_also = [
 ]
 
 [tool.ruff]
-select = [
+lint.select = [
   "E",
   "F",
   "W",   # flake8
@@ -113,7 +113,7 @@ select = [
   "NPY", # NumPy specific rules
   "PD",  # pandas-vet
 ]
-extend-ignore = [
+lint.extend-ignore = [
   "PLR",   # Design related pylint codes
   "E501",  # Line too long
   "PT004", # Use underscore for non-returning fixture (use usefixture instead)
@@ -121,17 +121,17 @@ extend-ignore = [
   "EM101", # Exception must not use a string literal
   "EM102", # Exception must not use an f-string literal
 ]
-typing-modules = ["mypackage._compat.typing"]
+lint.typing-modules = ["mypackage._compat.typing"]
 src = ["src"]
-unfixable = [
+lint.unfixable = [
   "T20",  # Removes print statements
   "F841", # Removes unused variables
 ]
 exclude = []
-flake8-unused-arguments.ignore-variadic-names = true
+lint.flake8-unused-arguments.ignore-variadic-names = true
 extend-exclude = ["tests"]
-pydocstyle.convention = "google"
-isort.known-first-party = ["atomicds"]
+lint.pydocstyle.convention = "google"
+lint.isort.known-first-party = ["atomicds"]
 
 [tool.docformatter]
 pre-summary-newline = true
