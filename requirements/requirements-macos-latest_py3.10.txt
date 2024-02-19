@@ -4,6 +4,24 @@
 #
 #    pip-compile --output-file=requirements/requirements-macos-latest_py3.10.txt pyproject.toml
 #
+certifi==2024.2.2
+    # via requests
+charset-normalizer==3.3.2
+    # via requests
+contourpy==1.2.0
+    # via matplotlib
+cycler==0.12.1
+    # via matplotlib
+fonttools==4.49.0
+    # via matplotlib
+idna==3.6
+    # via requests
+kiwisolver==1.4.5
+    # via matplotlib
+matplotlib==3.8.3
+    # via
+    #   atomicds (pyproject.toml)
+    #   pycocotools
 monty==2024.2.2
     # via atomicds (pyproject.toml)
 networkx==3.2.1
@@ -11,16 +29,35 @@ networkx==3.2.1
 numpy==1.26.4
     # via
     #   atomicds (pyproject.toml)
+    #   contourpy
+    #   matplotlib
     #   pandas
+    #   pycocotools
+packaging==23.2
+    # via matplotlib
 pandas==2.2.0
     # via atomicds (pyproject.toml)
 pillow==10.2.0
+    # via
+    #   atomicds (pyproject.toml)
+    #   matplotlib
+pycocotools==2.0.7
     # via atomicds (pyproject.toml)
+pyparsing==3.1.1
+    # via matplotlib
 python-dateutil==2.8.2
-    # via pandas
+    # via
+    #   matplotlib
+    #   pandas
 pytz==2024.1
     # via pandas
+requests==2.31.0
+    # via atomicds (pyproject.toml)
 six==1.16.0
     # via python-dateutil
+tqdm==4.66.2
+    # via atomicds (pyproject.toml)
 tzdata==2024.1
     # via pandas
+urllib3==2.2.1
+    # via requests
