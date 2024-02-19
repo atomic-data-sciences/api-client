@@ -10,6 +10,7 @@ from pycocotools import mask
 import trackpy as tp
 import networkx as nx
 import pandas as pd
+tp.quiet()
 
 
 class RHEEDImageResult(MSONable):
@@ -17,8 +18,10 @@ class RHEEDImageResult(MSONable):
         self,
         data_id: UUID | str,
         processed_image: Image,
+        # parent_data_id: UUID | str | None,
         pattern_graph: Graph | None,
-        metadata: dict | None = None,
+        metadata: dict = {},
+        labels: dict = {}
     ):
         """RHEED image result
 
@@ -29,10 +32,11 @@ class RHEEDImageResult(MSONable):
             metadata (dict): Generic metadata (e.g. timestamp, cluster_id, etc...).
         """
         self.data_id = data_id
+        # self.parent_data_id = parent_data_id
         self.processed_image = processed_image
         self.pattern_graph = pattern_graph
         self.metadata = metadata
-        self.labels = None
+        self.labels = labels
 
     def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True) -> Image:
         """Get diffraction pattern image with optional overlays
@@ -103,10 +107,13 @@ class RHEEDImageCollection(MSONable):
         """
         if len(labels) > 0 and len(labels) != len(rheed_images):
             raise ValueError("Labels must be the same length as the RHEED image collection.")
-        elif len(labels) > 0 and len(labels) == len(rheed_images):
-            for rheed_image, label in zip(rheed_images, labels):
-                # label = {f"label_{k}": v for k, v in label.items()}
-                rheed_image.metadata | label
+        
+        # if labels are provided, add an ordering into pattern_id
+        for idx, (rheed_image, label) in enumerate(zip(rheed_images, labels)):
+            rheed_image.labels = rheed_image.labels | label
+            for node in rheed_image.pattern_graph.nodes:
+                rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
+            
 
         self.rheed_images = rheed_images
         
@@ -149,7 +156,7 @@ class RHEEDImageCollection(MSONable):
         return linked_df
     
 
-    def featurize(self):
+    def featurize(self, streamline: bool = True, normalize: bool = True, **kwargs):
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
         
         Returns:
@@ -172,6 +179,8 @@ class RHEEDImageCollection(MSONable):
             "axis_major_length",
             "axis_minor_length",
         ]
+
+        # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
         node_df = pd.concat(
@@ -182,13 +191,26 @@ class RHEEDImageCollection(MSONable):
             axis=0,
         ).reset_index(drop=True)
 
+        label_df = pd.DataFrame.from_records([{"data_id": rheed_image.data_id} | rheed_image.labels for rheed_image in self.rheed_images])
         feature_df = node_df.pivot(
-            index="pattern_id", columns="node_id", values=node_feature_cols
+            index="uuid", columns="node_id", values=node_feature_cols
         )
-        # adjacency_df = adjacency_df.dataframe.pivot(
-        #     index="pattern_id", columns=["start_node", "end_node"], values=edge_feature_cols
-        # )
+        
+        feature_df.columns = feature_df.columns.to_flat_index()
+        feature_df = pd.merge(feature_df, label_df, left_index=True, right_on="data_id", how="inner")
+        feature_df = feature_df.rename(columns={col: (col, "") for col in label_df.columns})
+        feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
+        
+        keep_cols = node_feature_cols + list(set(key for rheed_image in self.rheed_images for key in rheed_image.labels.keys()))
+        feature_df = feature_df[keep_cols]
+        
+        if streamline:
+            feature_df.dropna(inplace=True, axis=1)
+        
+        if normalize:
+            # min max normalization
+            feature_df = (feature_df - feature_df.min()) / (feature_df.max() - feature_df.min())
 
         self.feature_df = feature_df
 
-        return feature_df  # , adjacency_df
+        return feature_df

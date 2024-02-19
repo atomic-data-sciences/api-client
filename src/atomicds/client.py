@@ -138,6 +138,9 @@ class Client(BaseClient):
             data_type = entry["char_source_type"]
             kwargs_list.append({"data_id": data_id, "data_type": data_type})
 
+        # sort by submission order; this is important to match external labels
+        kwargs_list = sorted(kwargs_list, key=lambda x: data_ids.index(x["data_id"]))
+
         pbar = (
             tqdm(
                 desc="Obtaining data results",
@@ -270,7 +273,7 @@ class Client(BaseClient):
 
         return timeseries_data.rename(columns=column_mapping)
 
-    def _get_rheed_image_result(self, data_id: str, metadata: dict | None = None):
+    def _get_rheed_image_result(self, data_id: str, metadata: dict = {}):
         # Get pattern graph data
         graph_data = self._get(sub_url=f"spots/{data_id}")
         graph = (
@@ -296,7 +299,8 @@ class Client(BaseClient):
         image_data = Image.open(BytesIO(image_bytes))
 
         return RHEEDImageResult(
-            data_id=data_id,
+            data_id=graph.nodes(data=True)[0]["uuid"],
+            # parent_data_id=data_id,
             processed_image=image_data,
             pattern_graph=graph,
             metadata=metadata,
