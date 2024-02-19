@@ -22,9 +22,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
-          pip install --upgrade ruff mypy
+          python -m pip install --upgrade pip
+          pip install -r requirements/requirements-ubuntu-latest_py3.11.txt
+          pip install -r requirements/requirements-ubuntu-latest_py3.11_extras.txt
 
       - name: ruff
         run: |
