@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import matplotlib.pyplot as plt
 from monty.json import MSONable
 from pandas import DataFrame
 
@@ -34,5 +35,49 @@ class RHEEDVideoResult(MSONable):
         self.rotating = rotating
 
     def get_plot(self):
-        # TODO: Implement
-        pass
+        fig, axes = plt.subplots(nrows=6, sharex=True, figsize=(10, 10))
+
+        time = self.timeseries_data["Time"]
+        cluster_uncertainty = self.timeseries_data["Cluster ID Uncertainty"]
+
+        timeseries_data = self.timeseries_data.drop(columns=["Time"])
+        timeseries_data = timeseries_data.drop(columns=["Cluster ID Uncertainty"])
+        timeseries_data = timeseries_data.rename(
+            columns={"Oscillation Period": "Oscillation Period [s]"}
+        )
+        colors = {
+            "Cluster ID": "black",
+            "Specular Intensity": "#0D74CE",
+            "First Order Intensity": "#0588F0",
+            "Cumulative Strain": "#CA244D",
+            "Relative Strain": "#DC3B5D",
+            "Oscillation Period [s]": "#AB4ABA",
+            "Diffraction Spot Count": "#CC4E00",
+        }
+
+        linewidth = 3
+        for col, axis in zip(timeseries_data.columns, axes):
+            (line,) = axis.plot(
+                time,
+                timeseries_data[col].values,
+                label=col,
+                color=colors[col],
+                linewidth=linewidth,
+            )
+            axis.grid(color="#E0E0E0", linestyle="--", linewidth=0.5)
+            axis.legend([line], [col])
+
+            if col == "Cluster ID":
+                axis.errorbar(
+                    time,
+                    timeseries_data[col].values,
+                    yerr=cluster_uncertainty,
+                    fmt="-",
+                    capsize=2,
+                    color=colors[col],
+                    linewidth=2,
+                )
+
+        axes[-1].set_xlabel("Time [s]", fontsize=12)
+        plt.close()
+        return fig
