@@ -4,6 +4,10 @@
 #
 #    pip-compile --all-extras --output-file=requirements/requirements-ubuntu-latest_py3.10_extras.txt pyproject.toml
 #
+certifi==2024.2.2
+    # via requests
+charset-normalizer==3.3.2
+    # via requests
 contourpy==1.2.0
     # via matplotlib
 coverage[toml]==7.4.1
@@ -14,6 +18,8 @@ exceptiongroup==1.2.0
     # via pytest
 fonttools==4.49.0
     # via matplotlib
+idna==3.6
+    # via requests
 iniconfig==2.0.0
     # via pytest
 kiwisolver==1.4.5
@@ -21,7 +27,9 @@ kiwisolver==1.4.5
 markupsafe==2.1.5
     # via werkzeug
 matplotlib==3.8.3
-    # via atomicds (pyproject.toml)
+    # via
+    #   atomicds (pyproject.toml)
+    #   pycocotools
 monty==2024.2.2
     # via atomicds (pyproject.toml)
 mypy==1.8.0
@@ -36,10 +44,10 @@ numpy==1.26.4
     #   contourpy
     #   matplotlib
     #   pandas
+    #   pycocotools
 packaging==23.2
     # via
     #   matplotlib
-    #   plotly
     #   pytest
 pandas==2.2.0
     # via atomicds (pyproject.toml)
@@ -47,10 +55,10 @@ pillow==10.2.0
     # via
     #   atomicds (pyproject.toml)
     #   matplotlib
-plotly==5.19.0
-    # via atomicds (pyproject.toml)
 pluggy==1.4.0
     # via pytest
+pycocotools==2.0.7
+    # via atomicds (pyproject.toml)
 pyparsing==3.1.1
     # via matplotlib
 pytest==8.0.1
@@ -67,24 +75,28 @@ python-dateutil==2.8.2
     #   pandas
 pytz==2024.1
     # via pandas
+requests==2.31.0
+    # via atomicds (pyproject.toml)
 ruff==0.2.2
     # via atomicds (pyproject.toml)
 six==1.16.0
     # via python-dateutil
-tenacity==8.2.3
-    # via plotly
 tomli==2.0.1
     # via
     #   coverage
     #   mypy
     #   pytest
-types-requests==2.31.0.20240125
+tqdm==4.66.2
+    # via atomicds (pyproject.toml)
+types-requests==2.31.0.20240218
     # via atomicds (pyproject.toml)
 typing-extensions==4.9.0
     # via mypy
 tzdata==2024.1
     # via pandas
-urllib3==2.2.0
-    # via types-requests
+urllib3==2.2.1
+    # via
+    #   requests
+    #   types-requests
 werkzeug==3.0.1
     # via pytest-httpserver
