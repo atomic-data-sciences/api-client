@@ -98,7 +98,7 @@ class RHEEDImageResult(MSONable):
                 overlay = PILImage.fromarray(overlay)
                 image.paste(overlay, mask=overlay)
 
-        return image    
+        return image
 
 
 class RHEEDImageCollection(MSONable):
@@ -124,9 +124,6 @@ class RHEEDImageCollection(MSONable):
 
 
         self.rheed_images = rheed_images
-
-
-        abc = 1
 
 
     def align_fingerprints(self):
