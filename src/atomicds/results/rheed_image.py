@@ -126,6 +126,9 @@ class RHEEDImageCollection(MSONable):
         self.rheed_images = rheed_images
 
 
+        abc = 1
+
+
     def align_fingerprints(self):
         """Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering features across RHEED patterns, based on relative position to the center feature.
         """
