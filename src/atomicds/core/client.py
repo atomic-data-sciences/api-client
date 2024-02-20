@@ -97,7 +97,6 @@ class BaseClient:
         """
         return_dict = {}
 
-
         kwargs_gen = iter(kwargs_list)
 
         ind = 0

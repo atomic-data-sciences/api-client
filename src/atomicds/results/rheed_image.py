@@ -21,7 +21,7 @@ class RHEEDImageResult(MSONable):
         processed_image: Image,
         pattern_graph: Graph | None,
         metadata: dict | None = None,
-        labels: dict | None = None
+        labels: dict | None = None,
     ):
         """RHEED image result
 
@@ -102,8 +102,9 @@ class RHEEDImageResult(MSONable):
 
 
 class RHEEDImageCollection(MSONable):
-
-    def __init__(self, rheed_images: list[RHEEDImageResult], labels: list[dict] | None = None):
+    def __init__(
+        self, rheed_images: list[RHEEDImageResult], labels: list[dict] | None = None
+    ):
         """Collection of RHEED images
 
         Args:
@@ -114,7 +115,9 @@ class RHEEDImageCollection(MSONable):
             labels = {}
 
         if len(labels) > 0 and len(labels) != len(rheed_images):
-            raise ValueError("Labels must be the same length as the RHEED image collection.")
+            raise ValueError(
+                "Labels must be the same length as the RHEED image collection."
+            )
 
         # if labels are provided, add an ordering into pattern_id
         for idx, (rheed_image, label) in enumerate(zip(rheed_images, labels)):
@@ -122,20 +125,21 @@ class RHEEDImageCollection(MSONable):
             for node in rheed_image.pattern_graph.nodes:
                 rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
-
         self.rheed_images = rheed_images
 
-
     def align_fingerprints(self):
-        """Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering features across RHEED patterns, based on relative position to the center feature.
-        """
-        image_scales = [rheed_image.processed_image.size for rheed_image in self.rheed_images]
+        """Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering features across RHEED patterns, based on relative position to the center feature."""
+        image_scales = [
+            rheed_image.processed_image.size for rheed_image in self.rheed_images
+        ]
         image_scale = np.amax(image_scales, axis=0)
         data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
 
         node_df = pd.concat(
             [
-                pd.DataFrame.from_dict(dict(rheed_image.pattern_graph.nodes(data=True)), orient='index')
+                pd.DataFrame.from_dict(
+                    dict(rheed_image.pattern_graph.nodes(data=True)), orient="index"
+                )
                 for rheed_image in self.rheed_images
             ],
             axis=0,
@@ -156,13 +160,14 @@ class RHEEDImageCollection(MSONable):
         splits = [group for _, group in linked_df.groupby("pattern_id")]
         for split, rheed_image in zip(splits, self.rheed_images):
             mapping = dict(zip(split["node_id"], split["particle"]))
-            rheed_image.pattern_graph = nx.relabel_nodes(rheed_image.pattern_graph, mapping)
+            rheed_image.pattern_graph = nx.relabel_nodes(
+                rheed_image.pattern_graph, mapping
+            )
             rheed_images.append(rheed_image)
 
         self.rheed_images = rheed_images
 
         return linked_df
-
 
     def get_pattern_dataframe(self, streamline: bool = True, normalize: bool = True):
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
@@ -193,23 +198,36 @@ class RHEEDImageCollection(MSONable):
 
         node_df = pd.concat(
             [
-                pd.DataFrame.from_dict(dict(rheed_image.pattern_graph.nodes(data=True)), orient='index')
+                pd.DataFrame.from_dict(
+                    dict(rheed_image.pattern_graph.nodes(data=True)), orient="index"
+                )
                 for rheed_image in self.rheed_images
             ],
             axis=0,
         ).reset_index(drop=True)
 
-        label_df = pd.DataFrame.from_records([{"data_id": rheed_image.data_id} | rheed_image.labels for rheed_image in self.rheed_images])
+        label_df = pd.DataFrame.from_records(
+            [
+                {"data_id": rheed_image.data_id} | rheed_image.labels
+                for rheed_image in self.rheed_images
+            ]
+        )
         feature_df = node_df.pivot_table(
             index="uuid", columns="node_id", values=node_feature_cols
         )
 
         feature_df.columns = feature_df.columns.to_flat_index()
-        feature_df = feature_df.merge(label_df, left_index=True, right_on="data_id", how="inner")
-        feature_df = feature_df.rename(columns={col: (col, "") for col in label_df.columns})
+        feature_df = feature_df.merge(
+            label_df, left_index=True, right_on="data_id", how="inner"
+        )
+        feature_df = feature_df.rename(
+            columns={col: (col, "") for col in label_df.columns}
+        )
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
 
-        keep_cols = node_feature_cols + list({key for rheed_image in self.rheed_images for key in rheed_image.labels})
+        keep_cols = node_feature_cols + list(
+            {key for rheed_image in self.rheed_images for key in rheed_image.labels}
+        )
         feature_df = feature_df[keep_cols]
 
         if streamline:
@@ -217,7 +235,9 @@ class RHEEDImageCollection(MSONable):
 
         if normalize:
             # min max normalization
-            feature_df = (feature_df - feature_df.min()) / (feature_df.max() - feature_df.min())
+            feature_df = (feature_df - feature_df.min()) / (
+                feature_df.max() - feature_df.min()
+            )
 
         self.feature_df = feature_df
 
