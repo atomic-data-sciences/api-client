@@ -1,4 +1,3 @@
-from typing import Optional
 from uuid import UUID
 
 import networkx as nx
@@ -110,7 +109,7 @@ class RHEEDImageCollection(MSONable):
         Args:
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
         """
-        
+
         if labels is None:
             labels = {}
 
