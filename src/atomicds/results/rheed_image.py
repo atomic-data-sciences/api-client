@@ -98,7 +98,7 @@ class RHEEDImageResult(MSONable):
                 overlay = PILImage.fromarray(overlay)
                 image.paste(overlay, mask=overlay)
 
-        return image
+        return image    
 
 
 class RHEEDImageCollection(MSONable):
