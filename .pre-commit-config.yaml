@@ -15,7 +15,7 @@ repos:
       rev: v0.1.8
       hooks:
           - id: ruff
-            files: backend/ads/
+            files: .
             args: [--fix, --exit-non-zero-on-fix]
           - id: ruff-format
-            files: backend/
+            files: .

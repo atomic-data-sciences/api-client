@@ -302,7 +302,6 @@ class Client(BaseClient):
 
         return RHEEDImageResult(
             data_id=graph.nodes(data=True)[0]["uuid"],
-            # parent_data_id=data_id,
             processed_image=image_data,
             pattern_graph=graph,
             metadata=metadata,

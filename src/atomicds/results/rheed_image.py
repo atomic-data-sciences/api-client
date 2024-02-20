@@ -20,10 +20,9 @@ class RHEEDImageResult(MSONable):
         self,
         data_id: UUID | str,
         processed_image: Image,
-        # parent_data_id: UUID | str | None,
         pattern_graph: Graph | None,
-        metadata: Optional[dict] = None,
-        labels: Optional[dict] = None
+        metadata: dict | None = None,
+        labels: dict | None = None
     ):
         """RHEED image result
 
@@ -39,7 +38,6 @@ class RHEEDImageResult(MSONable):
             metadata = {}
 
         self.data_id = data_id
-        # self.parent_data_id = parent_data_id
         self.processed_image = processed_image
         self.pattern_graph = pattern_graph
         self.metadata = metadata
@@ -106,14 +104,16 @@ class RHEEDImageResult(MSONable):
 
 class RHEEDImageCollection(MSONable):
 
-    def __init__(self, rheed_images: list[RHEEDImageResult], labels: Optional[list[dict]] = None):
+    def __init__(self, rheed_images: list[RHEEDImageResult], labels: list[dict] | None = None):
         """Collection of RHEED images
 
         Args:
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
         """
+        
         if labels is None:
             labels = {}
+
         if len(labels) > 0 and len(labels) != len(rheed_images):
             raise ValueError("Labels must be the same length as the RHEED image collection.")
 
@@ -165,12 +165,12 @@ class RHEEDImageCollection(MSONable):
         return linked_df
 
 
-    def featurize(self, streamline: bool = True, normalize: bool = True, **kwargs):
+    def get_pattern_dataframe(self, streamline: bool = True, normalize: bool = True):
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
         Returns:
-            (pd.DataFrame): DataFrame of node features.
-            (pd.DataFrame): DataFrame of edge features.
+            pd.DataFrame: DataFrame of node features.
+
         """
 
         node_feature_cols = [
