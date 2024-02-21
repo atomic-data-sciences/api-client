@@ -131,7 +131,7 @@ class RHEEDImageCollection(MSONable):
 
         self.rheed_images = rheed_images
 
-    def align_fingerprints(self) -> (pd.DataFrame, list[RHEEDImageResult]):
+    def align_fingerprints(self) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
         """
         Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering
         features across RHEED patterns, based on relative position to the center feature.
