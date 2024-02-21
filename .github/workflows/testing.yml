@@ -40,7 +40,7 @@ jobs:
         run: |
           mypy --version
           rm -rf .mypy_cache
-          mypy src/atomicds 
+          mypy src/atomicds
 
   test:
     needs: lint

@@ -26,7 +26,7 @@ class XPSResult(MSONable):
             predicted_composition (dict[str, float]): Mapping between element symbols and
                 predicted fractional composition values.
             detected_peaks (dict[str, float | str]): Mapping with peak transition labels.
-            elements_manually_set (bool): Whether the elements repsented in the predicted composition
+            elements_manually_set (bool): Whether the elements represented in the predicted composition
                 were manually specified by the user.
         """
         self.data_id = data_id
