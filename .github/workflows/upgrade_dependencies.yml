@@ -84,4 +84,4 @@ jobs:
             --body "Full log: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} (THIS IS AN AUTOMATED COMMENT)"
           else
             echo "Pull request already exists, won't create a new one."
-          fi 
+          fi

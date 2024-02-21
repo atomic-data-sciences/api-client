@@ -28,17 +28,19 @@ jobs:
           pip install -r requirements/requirements-ubuntu-latest_py3.11.txt
           pip install -r requirements/requirements-ubuntu-latest_py3.11_extras.txt
 
-      - name: ruff
+      - name: Install dependencies
         run: |
-          ruff --version
-          ruff .
-          ruff format --check .
+          pip install pre-commit
 
-      - name: mypy
+      - name: Run pre-commit
+        run: |
+          pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run mypy
         run: |
           mypy --version
           rm -rf .mypy_cache
-          mypy src/atomicds 
+          mypy src/atomicds
 
   test:
     needs: lint
