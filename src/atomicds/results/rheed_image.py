@@ -109,10 +109,10 @@ class RHEEDImageCollection(MSONable):
 
         Args:
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
+            labels (list[dict]): List of label data.
         """
 
-        if labels is None:
-            labels = {}
+        labels = labels or []  # type: ignore  # noqa: PGH003
 
         if len(labels) > 0 and len(labels) != len(rheed_images):
             raise ValueError(
@@ -122,8 +122,10 @@ class RHEEDImageCollection(MSONable):
         # if labels are provided, add an ordering into pattern_id
         for idx, (rheed_image, label) in enumerate(zip(rheed_images, labels)):
             rheed_image.labels = rheed_image.labels | label
-            for node in rheed_image.pattern_graph.nodes:
-                rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
+
+            if rheed_image.pattern_graph:
+                for node in rheed_image.pattern_graph.nodes:
+                    rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
         self.rheed_images = rheed_images
 
@@ -160,8 +162,9 @@ class RHEEDImageCollection(MSONable):
         splits = [group for _, group in linked_df.groupby("pattern_id")]
         for split, rheed_image in zip(splits, self.rheed_images):
             mapping = dict(zip(split["node_id"], split["particle"]))
-            rheed_image.pattern_graph = nx.relabel_nodes(
-                rheed_image.pattern_graph, mapping
+            rheed_image.pattern_graph = nx.relabel_nodes(  # type: ignore  # noqa: PGH003
+                rheed_image.pattern_graph,  # type: ignore  # noqa: PGH003
+                mapping,
             )
             rheed_images.append(rheed_image)
 
