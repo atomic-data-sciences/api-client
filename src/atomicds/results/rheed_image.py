@@ -103,6 +103,7 @@ class RHEEDImageResult(MSONable):
         return image
 
 
+# TODO: Add tests for RHEEDImageCollection
 class RHEEDImageCollection(MSONable):
     def __init__(
         self, rheed_images: list[RHEEDImageResult], labels: list[dict] | None = None
