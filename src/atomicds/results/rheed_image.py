@@ -131,13 +131,13 @@ class RHEEDImageCollection(MSONable):
 
         self.rheed_images = rheed_images
 
-    def align_fingerprints(self) -> pd.DataFrame:
+    def align_fingerprints(self) -> (pd.DataFrame, list[RHEEDImageResult]):
         """
         Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering
         features across RHEED patterns, based on relative position to the center feature.
 
         Returns:
-            (DataFrame): Pandas DataFrame object with aligned RHEED fingerprint data
+            (tuple[DataFrame, list[RHEEDImageResult]): Pandas DataFrame object with aligned RHEED fingerprint data
         """
         image_scales = [
             rheed_image.processed_image.size for rheed_image in self.rheed_images
@@ -173,7 +173,7 @@ class RHEEDImageCollection(MSONable):
             pos_columns=["relative_centroid_1", "relative_centroid_0"],
         )
 
-        rheed_images = []
+        rheed_images: list[RHEEDImageResult] = []
         splits = [group for _, group in linked_df.groupby("pattern_id")]
         for split, rheed_image in zip(splits, self.rheed_images):
             mapping = dict(zip(split["node_id"], split["particle"]))
@@ -183,7 +183,7 @@ class RHEEDImageCollection(MSONable):
             )
             rheed_images.append(rheed_image)
 
-        return linked_df
+        return linked_df, rheed_images
 
     def get_pattern_dataframe(
         self, streamline: bool = True, normalize: bool = True
