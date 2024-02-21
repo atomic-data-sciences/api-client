@@ -36,6 +36,12 @@ jobs:
         run: |
           pre-commit run --all-files --show-diff-on-failure
 
+      - name: Run mypy
+        run: |
+          mypy --version
+          rm -rf .mypy_cache
+          mypy src/atomicds 
+
   test:
     needs: lint
     strategy:
