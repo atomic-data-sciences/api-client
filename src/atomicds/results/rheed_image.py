@@ -11,6 +11,8 @@ from PIL import ImageDraw
 from PIL.Image import Image
 from pycocotools import mask
 
+from atomicds.core import ClientError
+
 tp.quiet()
 
 
@@ -129,21 +131,34 @@ class RHEEDImageCollection(MSONable):
 
         self.rheed_images = rheed_images
 
-    def align_fingerprints(self):
-        """Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering features across RHEED patterns, based on relative position to the center feature."""
+    def align_fingerprints(self) -> pd.DataFrame:
+        """
+        Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering
+        features across RHEED patterns, based on relative position to the center feature.
+
+        Returns:
+            (DataFrame): Pandas DataFrame object with aligned RHEED fingerprint data
+        """
         image_scales = [
             rheed_image.processed_image.size for rheed_image in self.rheed_images
         ]
         image_scale = np.amax(image_scales, axis=0)
         data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
 
-        node_df = pd.concat(
-            [
+        node_data = []
+        for ind, rheed_image in enumerate(self.rheed_images):
+            if rheed_image.pattern_graph is None:
+                raise ClientError(
+                    f"Unable to align fingerprints as rheed image {ind} has no graph data."
+                )
+            node_data.append(
                 pd.DataFrame.from_dict(
                     dict(rheed_image.pattern_graph.nodes(data=True)), orient="index"
                 )
-                for rheed_image in self.rheed_images
-            ],
+            )
+
+        node_df = pd.concat(
+            node_data,
             axis=0,
         ).reset_index(drop=True)
 
@@ -172,12 +187,13 @@ class RHEEDImageCollection(MSONable):
 
         return linked_df
 
-    def get_pattern_dataframe(self, streamline: bool = True, normalize: bool = True):
+    def get_pattern_dataframe(
+        self, streamline: bool = True, normalize: bool = True
+    ) -> pd.DataFrame:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
         Returns:
-            pd.DataFrame: DataFrame of node features.
-
+            (DataFrame): Pandas DataFrame object of RHEED node and edge features.
         """
 
         node_feature_cols = [
@@ -199,15 +215,16 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        node_df = pd.concat(
-            [
-                pd.DataFrame.from_dict(
-                    dict(rheed_image.pattern_graph.nodes(data=True)), orient="index"
+        node_data = []
+        for rheed_image in self.rheed_images:
+            if rheed_image.pattern_graph is not None:
+                node_data.append(
+                    pd.DataFrame.from_dict(
+                        dict(rheed_image.pattern_graph.nodes(data=True)), orient="index"
+                    )
                 )
-                for rheed_image in self.rheed_images
-            ],
-            axis=0,
-        ).reset_index(drop=True)
+
+        node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
 
         label_df = pd.DataFrame.from_records(
             [
