@@ -183,8 +183,6 @@ class RHEEDImageCollection(MSONable):
             )
             rheed_images.append(rheed_image)
 
-        self.rheed_images = rheed_images
-
         return linked_df
 
     def get_pattern_dataframe(
@@ -232,7 +230,7 @@ class RHEEDImageCollection(MSONable):
                 for rheed_image in self.rheed_images
             ]
         )
-        feature_df = node_df.pivot_table(
+        feature_df: pd.DataFrame = node_df.pivot_table(
             index="uuid", columns="node_id", values=node_feature_cols
         )
 
@@ -248,7 +246,7 @@ class RHEEDImageCollection(MSONable):
         keep_cols = node_feature_cols + list(
             {key for rheed_image in self.rheed_images for key in rheed_image.labels}
         )
-        feature_df = feature_df[keep_cols]
+        feature_df = feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
         if streamline:
             feature_df = feature_df.dropna(axis=1)
@@ -258,7 +256,5 @@ class RHEEDImageCollection(MSONable):
             feature_df = (feature_df - feature_df.min()) / (
                 feature_df.max() - feature_df.min()
             )
-
-        self.feature_df = feature_df
 
         return feature_df
