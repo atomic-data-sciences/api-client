@@ -36,8 +36,10 @@ dependencies = [
   "tqdm",
   "matplotlib",
   "pycocotools",
-  "trackpy"
+  "trackpy",
 ]
+
+[tool.setuptools_scm]
 
 [project.optional-dependencies]
 dev = [
