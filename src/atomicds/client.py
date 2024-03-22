@@ -301,8 +301,10 @@ class Client(BaseClient):
 
         image_data = Image.open(BytesIO(image_bytes))
 
+        min_node_index = min(graph.nodes(), key=lambda x: int(x))
+
         return RHEEDImageResult(
-            data_id=graph.nodes(data=True)[0]["uuid"] if graph else data_id,
+            data_id=graph.nodes(data=True)[min_node_index]["uuid"] if graph else data_id,
             processed_image=image_data,
             pattern_graph=graph,
             metadata=metadata,
