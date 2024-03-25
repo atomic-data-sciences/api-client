@@ -285,9 +285,6 @@ class RHEEDImageCollection(MSONable):
 
         feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
 
-        feature_df.columns = feature_df.columns.to_flat_index()
-        feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
-
         keep_cols = node_feature_cols + list(
             {key for extra_data in self.extra_data for key in extra_data}
         )
