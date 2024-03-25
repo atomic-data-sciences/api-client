@@ -100,12 +100,26 @@ class RHEEDImageResult(MSONable):
 
         return image
 
-    def get_laue_zero_radius(self):
+    def get_laue_zero_radius(self) -> tuple[float, tuple[float, float]]:
         """
-        Get the radius of the zeroth order Laue spot.
+        Get the radius of the zeroth order Laue zone. Note that the data is symmetrized across the
+        vertical axis before the Laue zone is searched for.
+
+        Returns:
+            (tuple[float, tuple[float, float]]): Tuple containing the best fit radius and center point.
         """
 
-        node_df = self.get_pattern_dataframe(symmetrize=True)
+        node_data = []
+        if self.pattern_graph is not None:
+            node_data.append(
+                pd.DataFrame.from_dict(
+                    dict(self.pattern_graph.nodes(data=True)), orient="index"
+                )
+            )
+
+        node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
+        node_df = self._symmetrize(node_df)
+
         image_array = np.array(self.processed_image)
 
         thetas = np.linspace(0, 2 * np.pi, 1440)
@@ -143,13 +157,16 @@ class RHEEDImageResult(MSONable):
         return best_fit_radius, (intersection_point[0] - best_fit_radius, x_center)  # type: ignore  # noqa: PGH003
 
     def get_pattern_dataframe(
-        self, extra_data: dict | None = None, symmetrize: bool = False
+        self,
+        extra_data: dict | None = None,
+        symmetrize: bool = False,
     ) -> pd.DataFrame:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
         Args:
             extra_data (dict | None): Dictionary containing field names and values of extra data to be included in the DataFrame object.
                 Defaults to None.
+            fields_to_retain (list[str] | None): Fields to ensure are kept in the DataFrame object. Defaults to None which
             symmetrize (bool): Whether to symmetrize the data across the vertical axis. Defaults to False.
 
         Returns:
@@ -246,12 +263,14 @@ class RHEEDImageResult(MSONable):
         )
         right_to_left["intensity_centroid_1"] = -right_to_left["intensity_centroid_1"]
         right_to_left["relative_centroid_1"] = -right_to_left["relative_centroid_1"]
+
         new_max = (
             reflection_plane - (right_to_left["bbox_minc"] - reflection_plane)
         ).astype(int)
         new_min = (
             reflection_plane - (right_to_left["bbox_maxc"] - reflection_plane)
         ).astype(int)
+
         right_to_left["bbox_minc"] = new_min
         right_to_left["bbox_maxc"] = new_max
         right_to_left["node_id"] = right_to_left["node_id"] + 1000
@@ -265,6 +284,7 @@ class RHEEDImageResult(MSONable):
 
         first_row = node_df.iloc[[0]].pop("last_updated")
         original_dtypes = first_row.dtypes
+
         # merge rows with overlapping bounding boxes into one row
         drop_rows = []
         add_rows = []
