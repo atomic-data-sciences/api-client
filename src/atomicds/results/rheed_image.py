@@ -278,39 +278,21 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        node_dfs = [
-            rheed_image.get_pattern_dataframe() for rheed_image in self.rheed_images
+        feature_dfs = [
+            rheed_image.get_pattern_dataframe(extra_data=extra_data)
+            for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
         ]
 
-        extra_data_df = pd.DataFrame.from_records(
-            [
-                {"data_id": rheed_image.data_id} | extra_data
-                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
-            ]
-        )
-
-        node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
-
-        feature_df: pd.DataFrame = node_df.pivot_table(
-            index="uuid", columns="node_id", values=node_feature_cols
-        )
+        feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
 
         feature_df.columns = feature_df.columns.to_flat_index()
-
-        feature_df = feature_df.merge(
-            extra_data_df, left_index=True, right_on="data_id", how="inner"
-        )
-
-        feature_df = feature_df.rename(
-            columns={col: (col, "") for col in extra_data_df.columns}
-        )
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
 
         keep_cols = node_feature_cols + list(
             {key for extra_data in self.extra_data for key in extra_data}
         )
 
-        feature_df = feature_df[keep_cols]  # type: ignore  # noqa: PGH003
+        feature_df = feature_df[keep_cols]
 
         if streamline:
             feature_df = feature_df.dropna(axis=1)
@@ -321,4 +303,4 @@ class RHEEDImageCollection(MSONable):
                 feature_df.max() - feature_df.min()
             )
 
-        return feature_df
+        return feature_df  # type: ignore  # noqa: PGH003
