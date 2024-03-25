@@ -100,12 +100,57 @@ class RHEEDImageResult(MSONable):
 
         return image
 
-    def get_pattern_dataframe(self, extra_data: dict | None = None) -> pd.DataFrame:
+    def get_laue_zero_radius(self):
+        """
+        Get the radius of the zeroth order Laue spot.
+        """
+
+        node_df = self.get_pattern_dataframe()
+        image_array = np.array(self.processed_image)
+
+        thetas = np.linspace(0, 2 * np.pi, 1440)
+        radiis = np.linspace(100, 1000, 100)
+
+        intersection_point = (
+            node_df.loc[node_df["node_id"] == node_df["node_id"].min()][
+                ["centroid_0", "centroid_1"]
+            ]
+            .to_numpy()
+            .squeeze()
+        )
+        result_matrix = []
+
+        for r0 in radiis:
+            x_center, y_center = intersection_point[1], intersection_point[0] - r0
+            x_points = r0 * np.cos(thetas) + x_center
+            y_points = r0 * np.sin(thetas) + y_center
+            int_x_points = np.round(x_points).astype(int)
+            int_y_points = np.round(y_points).astype(int)
+            coords = np.hstack(
+                [int_x_points.reshape(-1, 1), int_y_points.reshape(-1, 1)]
+            )
+            coords = coords[coords[:, 1] >= 0]
+            coords = coords[coords[:, 0] >= 0]
+            coords = coords[coords[:, 1] < image_array.shape[0]]
+            coords = coords[coords[:, 0] < image_array.shape[1]]
+            if len(coords) == 0:
+                continue
+            intensities = image_array[coords[:, 1], coords[:, 0]]
+            result_matrix.append(np.quantile(intensities, 0.9))
+
+        best_fit_radius = np.mean(radiis[np.argsort(result_matrix)][-3:])
+
+        return best_fit_radius, (intersection_point[0] - best_fit_radius, x_center)  # type: ignore  # noqa: PGH003
+
+    def get_pattern_dataframe(
+        self, extra_data: dict | None = None, symmetrize: bool = False
+    ) -> pd.DataFrame:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
         Args:
             extra_data (dict | None): Dictionary containing field names and values of extra data to be included in the DataFrame object.
                 Defaults to None.
+            symmetrize (bool): Whether to symmetrize the data across the vertical axis. Defaults to False.
 
         Returns:
             (DataFrame): Pandas DataFrame object of RHEED node and edge features.
@@ -144,6 +189,9 @@ class RHEEDImageResult(MSONable):
 
         node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
 
+        if symmetrize:
+            node_df = self._symmetrize(node_df)
+
         extra_data_df = pd.DataFrame.from_records(
             [{"data_id": self.data_id} | extra_data]
         )
@@ -166,7 +214,7 @@ class RHEEDImageResult(MSONable):
         return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
     @staticmethod
-    def _symmetrize(node_df):
+    def _symmetrize(node_df: pd.DataFrame):
         """Symmetrize a DataFrame object containing RHEED image node data"""
 
         reflection_plane = node_df["specular_origin_1"].mean()
@@ -212,6 +260,12 @@ class RHEEDImageResult(MSONable):
             [node_df, left_to_right, right_to_left], axis=0
         ).reset_index(drop=True)
 
+        if node_df.empty:
+            return node_df
+
+        first_row = node_df.iloc[[0]]
+        original_dtypes = first_row.dtypes
+
         # merge rows with overlapping bounding boxes into one row
         drop_rows = []
         add_rows = []
@@ -234,7 +288,6 @@ class RHEEDImageResult(MSONable):
                     .squeeze()
                     .tolist(),
                 ):
-                    original_dtypes = row1.dtypes
                     merged_row = (
                         pd.concat([row1, row2], axis=0)
                         .sort_values("node_id")
