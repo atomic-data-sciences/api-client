@@ -25,7 +25,6 @@ class RHEEDImageResult(MSONable):
         processed_image: Image,
         pattern_graph: Graph | None,
         metadata: dict | None = None,
-        labels: dict | None = None,
     ):
         """RHEED image result
 
@@ -35,16 +34,13 @@ class RHEEDImageResult(MSONable):
             pattern_graph (Graph | None): NetworkX Graph object for the extracted diffraction pattern.
             metadata (dict): Generic metadata (e.g. timestamp, cluster_id, etc...).
         """
-        if labels is None:
-            labels = {}
-        if metadata is None:
-            metadata = {}
+
+        metadata = metadata or {}
 
         self.data_id = data_id
         self.processed_image = processed_image
         self.pattern_graph = pattern_graph
         self.metadata = metadata
-        self.labels = labels
 
     def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True) -> Image:
         """Get diffraction pattern image with optional overlays
@@ -103,6 +99,68 @@ class RHEEDImageResult(MSONable):
                 image.paste(overlay, mask=overlay)
 
         return image
+
+    def get_pattern_dataframe(self, extra_data: dict | None) -> pd.DataFrame:
+        """Featurize the RHEED image collection into a dataframe of node features and edge features.
+
+        Args:
+            extra_data (dict | None): Dictionary containing names and values of extra data to be included in the DataFrame object.
+
+        Returns:
+            (DataFrame): Pandas DataFrame object of RHEED node and edge features.
+        """
+
+        extra_data = extra_data or {}
+
+        node_feature_cols = [
+            "spot_area",
+            "streak_area",
+            "relative_centroid_0",
+            "relative_centroid_1",
+            "intensity_centroid_0",
+            "intensity_centroid_1",
+            "fwhm_0",
+            "fwhm_1",
+            "area",
+            "eccentricity",
+            "center_distance",
+            "axis_major_length",
+            "axis_minor_length",
+        ]
+
+        # TODO: add edge features
+        # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
+
+        node_data = []
+        if self.pattern_graph is not None:
+            node_data.append(
+                pd.DataFrame.from_dict(
+                    dict(self.pattern_graph.nodes(data=True)), orient="index"
+                )
+            )
+
+        node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
+
+        extra_data_df = pd.DataFrame.from_records(
+            [{"data_id": self.data_id} | extra_data]
+        )
+        feature_df: pd.DataFrame = node_df.pivot_table(
+            index="uuid", columns="node_id", values=node_feature_cols
+        )
+
+        feature_df.columns = feature_df.columns.to_flat_index()
+
+        feature_df = feature_df.merge(
+            extra_data_df, left_index=True, right_on="data_id", how="inner"
+        )
+        feature_df = feature_df.rename(
+            columns={col: (col, "") for col in extra_data_df.columns}
+        )
+        feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
+
+        keep_cols = node_feature_cols + list(extra_data.keys())
+
+        return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
 
 # TODO: Add tests for RHEEDImageCollection
