@@ -105,7 +105,7 @@ class RHEEDImageResult(MSONable):
         Get the radius of the zeroth order Laue spot.
         """
 
-        node_df = self.get_pattern_dataframe()
+        node_df = self.get_pattern_dataframe(symmetrize=True)
         image_array = np.array(self.processed_image)
 
         thetas = np.linspace(0, 2 * np.pi, 1440)
@@ -263,9 +263,8 @@ class RHEEDImageResult(MSONable):
         if node_df.empty:
             return node_df
 
-        first_row = node_df.iloc[[0]]
+        first_row = node_df.iloc[[0]].pop("last_updated")
         original_dtypes = first_row.dtypes
-
         # merge rows with overlapping bounding boxes into one row
         drop_rows = []
         add_rows = []
@@ -277,7 +276,6 @@ class RHEEDImageResult(MSONable):
             ):  # Start from i+1 to avoid repeats and self-pairing
                 row1 = node_df.iloc[[i]]
                 row2 = node_df.iloc[[j]]
-
                 if boxes_overlap(
                     row1[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]
                     .to_numpy()
@@ -293,7 +291,6 @@ class RHEEDImageResult(MSONable):
                         .sort_values("node_id")
                         .reset_index(drop=True)
                     )
-                    # print(merged_row[["intensity_centroid_0", "intensity_centroid_1"]])
                     merged_row = merged_row.agg(
                         {
                             "centroid_0": "mean",
