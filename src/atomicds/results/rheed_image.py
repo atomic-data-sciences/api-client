@@ -100,11 +100,12 @@ class RHEEDImageResult(MSONable):
 
         return image
 
-    def get_pattern_dataframe(self, extra_data: dict | None) -> pd.DataFrame:
+    def get_pattern_dataframe(self, extra_data: dict | None = None) -> pd.DataFrame:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
         Args:
-            extra_data (dict | None): Dictionary containing names and values of extra data to be included in the DataFrame object.
+            extra_data (dict | None): Dictionary containing field names and values of extra data to be included in the DataFrame object.
+                Defaults to None.
 
         Returns:
             (DataFrame): Pandas DataFrame object of RHEED node and edge features.
@@ -166,31 +167,30 @@ class RHEEDImageResult(MSONable):
 # TODO: Add tests for RHEEDImageCollection
 class RHEEDImageCollection(MSONable):
     def __init__(
-        self, rheed_images: list[RHEEDImageResult], labels: list[dict] | None = None
+        self, rheed_images: list[RHEEDImageResult], extra_data: list[dict] | None = None
     ):
         """Collection of RHEED images
 
         Args:
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
-            labels (list[dict]): List of label data.
+            extra_data (list[dict] | None): List of dictionaries containing field names and values of extra data to be included in the DataFrame object.
+                Defaults to None.
         """
 
-        labels = labels or []  # type: ignore  # noqa: PGH003
+        extra_data = extra_data or []  # type: ignore  # noqa: PGH003
 
-        if len(labels) > 0 and len(labels) != len(rheed_images):
+        if len(extra_data) > 0 and len(extra_data) != len(rheed_images):
             raise ValueError(
-                "Labels must be the same length as the RHEED image collection."
+                "List of extra data must be the same length as the RHEED image collection."
             )
 
-        # if labels are provided, add an ordering into pattern_id
-        for idx, (rheed_image, label) in enumerate(zip(rheed_images, labels)):
-            rheed_image.labels = rheed_image.labels | label
-
+        for idx, rheed_image in enumerate(rheed_images):
             if rheed_image.pattern_graph:
                 for node in rheed_image.pattern_graph.nodes:
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
         self.rheed_images = rheed_images
+        self.extra_data = extra_data
 
     def align_fingerprints(self) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
         """
@@ -251,6 +251,10 @@ class RHEEDImageCollection(MSONable):
     ) -> pd.DataFrame:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
+        Args:
+            streamline (bool): Whether to remove streamline the DataFrame object and remove null values. Defaults to True.
+            normalize (bool): Whether to min/max normalize the feature data across all images. Defaults to True.
+
         Returns:
             (DataFrame): Pandas DataFrame object of RHEED node and edge features.
         """
@@ -274,39 +278,38 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        node_data = []
-        for rheed_image in self.rheed_images:
-            if rheed_image.pattern_graph is not None:
-                node_data.append(
-                    pd.DataFrame.from_dict(
-                        dict(rheed_image.pattern_graph.nodes(data=True)), orient="index"
-                    )
-                )
+        node_dfs = [
+            rheed_image.get_pattern_dataframe() for rheed_image in self.rheed_images
+        ]
 
-        node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
-
-        label_df = pd.DataFrame.from_records(
+        extra_data_df = pd.DataFrame.from_records(
             [
-                {"data_id": rheed_image.data_id} | rheed_image.labels
-                for rheed_image in self.rheed_images
+                {"data_id": rheed_image.data_id} | extra_data
+                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
             ]
         )
+
+        node_df = pd.concat(node_dfs)
+
         feature_df: pd.DataFrame = node_df.pivot_table(
             index="uuid", columns="node_id", values=node_feature_cols
         )
 
         feature_df.columns = feature_df.columns.to_flat_index()
+
         feature_df = feature_df.merge(
-            label_df, left_index=True, right_on="data_id", how="inner"
+            extra_data_df, left_index=True, right_on="data_id", how="inner"
         )
+
         feature_df = feature_df.rename(
-            columns={col: (col, "") for col in label_df.columns}
+            columns={col: (col, "") for col in extra_data_df.columns}
         )
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
 
         keep_cols = node_feature_cols + list(
-            {key for rheed_image in self.rheed_images for key in rheed_image.labels}
+            {key for extra_data in self.extra_data for key in extra_data}
         )
+
         feature_df = feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
         if streamline:
