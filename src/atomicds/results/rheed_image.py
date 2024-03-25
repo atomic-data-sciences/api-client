@@ -289,7 +289,7 @@ class RHEEDImageCollection(MSONable):
             ]
         )
 
-        node_df = pd.concat(node_dfs)
+        node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
 
         feature_df: pd.DataFrame = node_df.pivot_table(
             index="uuid", columns="node_id", values=node_feature_cols
