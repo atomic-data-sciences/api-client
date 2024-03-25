@@ -13,7 +13,7 @@ from PIL import ImageDraw
 from PIL.Image import Image
 from pycocotools import mask
 
-from atomicds.core import ClientError
+from atomicds.core import ClientError, boxes_overlap
 
 tp.quiet()
 
@@ -120,6 +120,8 @@ class RHEEDImageResult(MSONable):
             "relative_centroid_1",
             "intensity_centroid_0",
             "intensity_centroid_1",
+            "specular_origin_0",
+            "specular_origin_1",
             "fwhm_0",
             "fwhm_1",
             "area",
@@ -162,6 +164,124 @@ class RHEEDImageResult(MSONable):
         keep_cols = node_feature_cols + list(extra_data.keys())
 
         return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
+
+    @staticmethod
+    def _symmetrize(node_df):
+        """Symmetrize a DataFrame object containing RHEED image node data"""
+
+        reflection_plane = node_df["specular_origin_1"].mean()
+
+        left_nodes = node_df.loc[node_df["centroid_1"] < reflection_plane]
+        right_nodes = node_df.loc[node_df["centroid_1"] > reflection_plane]
+
+        left_to_right = left_nodes.copy()
+        left_to_right["centroid_1"] = reflection_plane + (
+            reflection_plane - left_to_right["centroid_1"]
+        )
+        left_to_right["intensity_centroid_1"] = -left_to_right["intensity_centroid_1"]
+        left_to_right["relative_centroid_1"] = -left_to_right["relative_centroid_1"]
+
+        new_max = (
+            reflection_plane + (reflection_plane - left_to_right["bbox_minc"])
+        ).astype(int)
+        new_min = (
+            reflection_plane + (reflection_plane - left_to_right["bbox_maxc"])
+        ).astype(int)
+        left_to_right["bbox_maxc"] = new_max
+        left_to_right["bbox_minc"] = new_min
+
+        left_to_right["node_id"] = left_to_right["node_id"] + 1000
+
+        right_to_left = right_nodes.copy()
+        right_to_left["centroid_1"] = reflection_plane - (
+            right_to_left["centroid_1"] - reflection_plane
+        )
+        right_to_left["intensity_centroid_1"] = -right_to_left["intensity_centroid_1"]
+        right_to_left["relative_centroid_1"] = -right_to_left["relative_centroid_1"]
+        new_max = (
+            reflection_plane - (right_to_left["bbox_minc"] - reflection_plane)
+        ).astype(int)
+        new_min = (
+            reflection_plane - (right_to_left["bbox_maxc"] - reflection_plane)
+        ).astype(int)
+        right_to_left["bbox_minc"] = new_min
+        right_to_left["bbox_maxc"] = new_max
+        right_to_left["node_id"] = right_to_left["node_id"] + 1000
+
+        node_df = pd.concat(
+            [node_df, left_to_right, right_to_left], axis=0
+        ).reset_index(drop=True)
+
+        # merge rows with overlapping bounding boxes into one row
+        drop_rows = []
+        add_rows = []
+        for i in range(
+            len(node_df) - 1
+        ):  # -1 so we don't try to pair the last row with anything
+            for j in range(
+                i + 1, len(node_df)
+            ):  # Start from i+1 to avoid repeats and self-pairing
+                row1 = node_df.iloc[[i]]
+                row2 = node_df.iloc[[j]]
+
+                if boxes_overlap(
+                    row1[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]
+                    .to_numpy()
+                    .squeeze()
+                    .tolist(),
+                    row2[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]
+                    .to_numpy()
+                    .squeeze()
+                    .tolist(),
+                ):
+                    original_dtypes = row1.dtypes
+                    merged_row = (
+                        pd.concat([row1, row2], axis=0)
+                        .sort_values("node_id")
+                        .reset_index(drop=True)
+                    )
+                    # print(merged_row[["intensity_centroid_0", "intensity_centroid_1"]])
+                    merged_row = merged_row.agg(
+                        {
+                            "centroid_0": "mean",
+                            "centroid_1": "mean",
+                            "intensity_centroid_0": "mean",
+                            "intensity_centroid_1": "mean",
+                            "relative_centroid_0": "mean",
+                            "relative_centroid_1": "mean",
+                            "bbox_minc": "mean",
+                            "bbox_minr": "mean",
+                            "bbox_maxc": "mean",
+                            "bbox_maxr": "mean",
+                            "area": "mean",
+                            "node_id": "min",
+                            "pattern_id": lambda x: x.iloc[0],
+                            "specular_origin_0": "mean",
+                            "specular_origin_1": "mean",
+                            "center_distance": "mean",
+                            "fwhm_0": "mean",
+                            "fwhm_1": "mean",
+                            "mask_rle": lambda x: x.iloc[0],
+                            "mask_width": lambda x: x.iloc[0],
+                            "mask_height": lambda x: x.iloc[0],
+                            "uuid": lambda x: x.iloc[0],
+                            "oscillation_period_seconds": "mean",
+                            "eccentricity": "mean",
+                            "axis_major_length": "mean",
+                            "axis_minor_length": "mean",
+                            "bbox_intensity": "mean",
+                            "spot_area": "mean",
+                            "streak_area": "mean",
+                        }
+                    )
+
+                    drop_rows.append(i)
+                    drop_rows.append(j)
+                    add_rows.append(merged_row)
+
+        node_df = node_df.drop(drop_rows, axis=0)
+        merged_df = pd.concat(add_rows, axis=1).T.astype(original_dtypes)
+        return pd.concat([node_df, merged_df], axis=0).reset_index(drop=True)
 
 
 # TODO: Add tests for RHEEDImageCollection
@@ -266,6 +386,8 @@ class RHEEDImageCollection(MSONable):
             "relative_centroid_1",
             "intensity_centroid_0",
             "intensity_centroid_1",
+            "specular_origin_0",
+            "specular_origin_1",
             "fwhm_0",
             "fwhm_1",
             "area",
