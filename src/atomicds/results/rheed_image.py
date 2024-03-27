@@ -123,15 +123,20 @@ class RHEEDImageResult(MSONable):
         image_array = np.array(self.processed_image)
 
         thetas = np.linspace(0, 2 * np.pi, 1440)
-        radiis = np.linspace(100, 1000, 100)
+        radiis = np.linspace(100, 1400, 2000)
 
         intersection_point = (
             node_df.loc[node_df["node_id"] == node_df["node_id"].min()][
-                ["centroid_0", "centroid_1"]
+                ["intensity_centroid_0", "intensity_centroid_1"]
+            ].to_numpy()
+            .squeeze() 
+            + node_df.loc[node_df["node_id"] == node_df["node_id"].min()][
+                ["specular_origin_0", "specular_origin_1"]
             ]
             .to_numpy()
             .squeeze()
         )
+
         result_matrix = []
 
         for r0 in radiis:
@@ -152,9 +157,9 @@ class RHEEDImageResult(MSONable):
             intensities = image_array[coords[:, 1], coords[:, 0]]
             result_matrix.append(np.quantile(intensities, 0.9))
 
-        best_fit_radius = np.mean(radiis[np.argsort(result_matrix)][-3:])
+        best_fit_radius = np.mean(radiis[np.argsort(result_matrix)][-30:])
 
-        return best_fit_radius, (intersection_point[0] - best_fit_radius, x_center)  # type: ignore  # noqa: PGH003
+        return best_fit_radius, [intersection_point[0] - best_fit_radius, x_center]  # type: ignore  # noqa: PGH003
 
     def get_pattern_dataframe(
         self,
@@ -228,7 +233,7 @@ class RHEEDImageResult(MSONable):
 
         keep_cols = node_feature_cols + list(extra_data.keys())
 
-        return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
+        return node_df, feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
     @staticmethod
     def _symmetrize(node_df: pd.DataFrame):
@@ -434,10 +439,12 @@ class RHEEDImageCollection(MSONable):
             )
             rheed_images.append(rheed_image)
 
-        return linked_df, rheed_images
+        self.rheed_images = rheed_images
+
+        return rheed_images # linked_df
 
     def get_pattern_dataframe(
-        self, streamline: bool = True, normalize: bool = True
+        self, streamline: bool = True, normalize: bool = True, symmetrize: bool = False
     ) -> pd.DataFrame:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
@@ -470,11 +477,18 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        feature_dfs = [
-            rheed_image.get_pattern_dataframe(extra_data=extra_data)
+        # TODO: if extra_data is empty, zip will return []
+        node_dfs = [
+            rheed_image.get_pattern_dataframe(extra_data=extra_data, symmetrize=symmetrize)[0]
             for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
         ]
 
+        feature_dfs = [
+            rheed_image.get_pattern_dataframe(extra_data=extra_data, symmetrize=symmetrize)[1]
+            for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+        ]
+
+        node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
         feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
 
         keep_cols = node_feature_cols + list(
@@ -492,4 +506,7 @@ class RHEEDImageCollection(MSONable):
                 feature_df.max() - feature_df.min()
             )
 
-        return feature_df  # type: ignore  # noqa: PGH003
+        return node_df, feature_df  # type: ignore  # noqa: PGH003
+
+    def __getitem__(self, key: int) -> RHEEDImageResult:
+        return self.rheed_images[key]
