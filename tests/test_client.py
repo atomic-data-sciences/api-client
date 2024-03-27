@@ -49,8 +49,8 @@ def test_include_org_search(client: Client):
 
 
 def test_data_ids_search(client: Client):
-    orig_data = client.search()
-    data_ids = list(orig_data["Data ID"].values)
+    user_data = client.search(include_organization_data=False)
+    data_ids = list(user_data["Data ID"].values)
     data = client.search(data_ids=data_ids)
     assert len(data["Data ID"].values) == len(data_ids)
 
