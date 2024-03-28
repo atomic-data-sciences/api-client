@@ -40,7 +40,7 @@ def boxes_overlap(box1, box2) -> bool:
         return False
     return True
 
-def rescale_cartesian_coordinates(points: npt.NDArray, origin=(0,0), scale: float) -> npt.NDArray:
+def rescale_cartesian_coordinates(points: npt.NDArray, origin=(0,0), scale: float = 1.) -> npt.NDArray:
 
     """
     Normalize radius in polar coordinates, then convert back to cartesian to get rescaled cartesian coordinates in image dimensions.
