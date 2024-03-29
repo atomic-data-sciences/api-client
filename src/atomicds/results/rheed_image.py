@@ -217,9 +217,10 @@ class RHEEDImageResult(MSONable):
         extra_data_df = pd.DataFrame.from_records(
             [{"data_id": self.data_id} | extra_data]
         )
+
         feature_df: pd.DataFrame = node_df.pivot_table(
             index="uuid", columns="node_id", values=node_feature_cols
-        )
+        )       
 
         feature_df.columns = feature_df.columns.to_flat_index()
 
@@ -284,10 +285,12 @@ class RHEEDImageResult(MSONable):
             [node_df, left_to_right, right_to_left], axis=0
         ).reset_index(drop=True)
 
+        # print(node_df.dtypes)
+
         if node_df.empty:
             return node_df
 
-        first_row = node_df.iloc[[0]].pop("last_updated")
+        first_row = node_df.iloc[[0]].drop(columns=["last_updated", "version"])
         original_dtypes = first_row.dtypes
 
         # merge rows with overlapping bounding boxes into one row
@@ -395,6 +398,7 @@ class RHEEDImageCollection(MSONable):
         Returns:
             (tuple[DataFrame, list[RHEEDImageResult]): Pandas DataFrame object with aligned RHEED fingerprint data
         """
+
         image_scales = [
             rheed_image.processed_image.size for rheed_image in self.rheed_images
         ]
@@ -423,10 +427,10 @@ class RHEEDImageCollection(MSONable):
 
         linked_df = tp.link(
             f=node_df,
-            search_range=np.sqrt(np.sum(np.square(image_scale))) * 0.05,
+            search_range=np.sqrt(np.sum(np.square(image_scale))) * 0.1,
             memory=len(data_ids),
             t_column="pattern_id",
-            pos_columns=["relative_centroid_1", "relative_centroid_0"],
+            pos_columns=["intensity_centroid_1", "intensity_centroid_0"],
         )
 
         rheed_images: list[RHEEDImageResult] = []
@@ -510,3 +514,6 @@ class RHEEDImageCollection(MSONable):
 
     def __getitem__(self, key: int) -> RHEEDImageResult:
         return self.rheed_images[key]
+    
+    def __len__(self) -> int:
+        return len(self.rheed_images)
