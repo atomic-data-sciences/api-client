@@ -37,9 +37,18 @@ class RHEEDImageResult(MSONable):
 
         metadata = metadata or {}
 
+        processed_data_id = None  # type: ignore  # noqa: PGH003
+
+        if pattern_graph is not None:
+            min_node_index: int = min(pattern_graph.nodes(), key=lambda x: int(x))
+            processed_data_id: str = pattern_graph.nodes(data=True)[min_node_index][  # type: ignore  # noqa: PGH003
+                "uuid"
+            ]
+
         self.data_id = data_id
         self.processed_image = processed_image
         self.pattern_graph = pattern_graph
+        self.processed_data_id = processed_data_id
         self.metadata = metadata
 
     def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True) -> Image:
@@ -239,6 +248,7 @@ class RHEEDImageResult(MSONable):
         left_nodes = node_df.loc[node_df["centroid_1"] < reflection_plane]
         right_nodes = node_df.loc[node_df["centroid_1"] > reflection_plane]
 
+        # Left to right
         left_to_right = left_nodes.copy()
         left_to_right["centroid_1"] = reflection_plane + (
             reflection_plane - left_to_right["centroid_1"]
@@ -246,17 +256,14 @@ class RHEEDImageResult(MSONable):
         left_to_right["intensity_centroid_1"] = -left_to_right["intensity_centroid_1"]
         left_to_right["relative_centroid_1"] = -left_to_right["relative_centroid_1"]
 
-        new_max = (
+        left_to_right["bbox_maxc"] = (
             reflection_plane + (reflection_plane - left_to_right["bbox_minc"])
         ).astype(int)
-        new_min = (
+        left_to_right["bbox_minc"] = (
             reflection_plane + (reflection_plane - left_to_right["bbox_maxc"])
         ).astype(int)
-        left_to_right["bbox_maxc"] = new_max
-        left_to_right["bbox_minc"] = new_min
 
-        left_to_right["node_id"] = left_to_right["node_id"] + 1000
-
+        # Right to left
         right_to_left = right_nodes.copy()
         right_to_left["centroid_1"] = reflection_plane - (
             right_to_left["centroid_1"] - reflection_plane
@@ -264,16 +271,12 @@ class RHEEDImageResult(MSONable):
         right_to_left["intensity_centroid_1"] = -right_to_left["intensity_centroid_1"]
         right_to_left["relative_centroid_1"] = -right_to_left["relative_centroid_1"]
 
-        new_max = (
+        right_to_left["bbox_minc"] = (
             reflection_plane - (right_to_left["bbox_minc"] - reflection_plane)
         ).astype(int)
-        new_min = (
+        right_to_left["bbox_maxc"] = (
             reflection_plane - (right_to_left["bbox_maxc"] - reflection_plane)
         ).astype(int)
-
-        right_to_left["bbox_minc"] = new_min
-        right_to_left["bbox_maxc"] = new_max
-        right_to_left["node_id"] = right_to_left["node_id"] + 1000
 
         node_df = pd.concat(
             [node_df, left_to_right, right_to_left], axis=0
@@ -379,8 +382,16 @@ class RHEEDImageCollection(MSONable):
                 for node in rheed_image.pattern_graph.nodes:
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
-        self.rheed_images = rheed_images
-        self.extra_data = extra_data
+        self._rheed_images = rheed_images
+        self._extra_data = extra_data
+
+    @property
+    def rheed_images(self):
+        return self._rheed_images
+
+    @property
+    def extra_data(self):
+        return self._extra_data
 
     def align_fingerprints(self) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
         """
@@ -470,10 +481,15 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        feature_dfs = [
-            rheed_image.get_pattern_dataframe(extra_data=extra_data)
-            for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
-        ]
+        if self.extra_data:
+            feature_dfs = [
+                rheed_image.get_pattern_dataframe(extra_data=extra_data)
+                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+            ]
+        else:
+            feature_dfs = [
+                rheed_image.get_pattern_dataframe() for rheed_image in self.rheed_images
+            ]
 
         feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
 
