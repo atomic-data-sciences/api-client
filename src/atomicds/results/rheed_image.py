@@ -37,9 +37,18 @@ class RHEEDImageResult(MSONable):
 
         metadata = metadata or {}
 
+        processed_data_id = None  # type: ignore  # noqa: PGH003
+
+        if pattern_graph is not None:
+            min_node_index: int = min(pattern_graph.nodes(), key=lambda x: int(x))
+            processed_data_id: str = pattern_graph.nodes(data=True)[min_node_index][  # type: ignore  # noqa: PGH003
+                "uuid"
+            ]
+
         self.data_id = data_id
         self.processed_image = processed_image
         self.pattern_graph = pattern_graph
+        self.processed_data_id = processed_data_id
         self.metadata = metadata
 
     def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True) -> Image:
