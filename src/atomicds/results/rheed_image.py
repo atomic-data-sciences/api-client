@@ -379,8 +379,16 @@ class RHEEDImageCollection(MSONable):
                 for node in rheed_image.pattern_graph.nodes:
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
-        self.rheed_images = rheed_images
-        self.extra_data = extra_data
+        self._rheed_images = rheed_images
+        self._extra_data = extra_data
+
+    @property
+    def rheed_images(self):
+        return self._rheed_images
+
+    @property
+    def extra_data(self):
+        return self._extra_data
 
     def align_fingerprints(self) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
         """
