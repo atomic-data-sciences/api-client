@@ -128,8 +128,9 @@ class RHEEDImageResult(MSONable):
         intersection_point = (
             node_df.loc[node_df["node_id"] == node_df["node_id"].min()][
                 ["intensity_centroid_0", "intensity_centroid_1"]
-            ].to_numpy()
-            .squeeze() 
+            ]
+            .to_numpy()
+            .squeeze()
             + node_df.loc[node_df["node_id"] == node_df["node_id"].min()][
                 ["specular_origin_0", "specular_origin_1"]
             ]
@@ -220,7 +221,7 @@ class RHEEDImageResult(MSONable):
 
         feature_df: pd.DataFrame = node_df.pivot_table(
             index="uuid", columns="node_id", values=node_feature_cols
-        )       
+        )
 
         feature_df.columns = feature_df.columns.to_flat_index()
 
@@ -435,7 +436,7 @@ class RHEEDImageCollection(MSONable):
 
         self.rheed_images = rheed_images
 
-        return rheed_images # linked_df
+        return rheed_images  # linked_df
 
     def get_pattern_dataframe(
         self, streamline: bool = True, normalize: bool = True, symmetrize: bool = False
@@ -473,12 +474,16 @@ class RHEEDImageCollection(MSONable):
 
         # TODO: if extra_data is empty, zip will return []
         node_dfs = [
-            rheed_image.get_pattern_dataframe(extra_data=extra_data, symmetrize=symmetrize)[0]
+            rheed_image.get_pattern_dataframe(
+                extra_data=extra_data, symmetrize=symmetrize
+            )[0]
             for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
         ]
 
         feature_dfs = [
-            rheed_image.get_pattern_dataframe(extra_data=extra_data, symmetrize=symmetrize)[1]
+            rheed_image.get_pattern_dataframe(
+                extra_data=extra_data, symmetrize=symmetrize
+            )[1]
             for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
         ]
 
@@ -504,6 +509,6 @@ class RHEEDImageCollection(MSONable):
 
     def __getitem__(self, key: int) -> RHEEDImageResult:
         return self.rheed_images[key]
-    
+
     def __len__(self) -> int:
         return len(self.rheed_images)
