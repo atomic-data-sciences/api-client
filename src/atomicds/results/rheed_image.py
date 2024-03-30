@@ -470,10 +470,15 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        feature_dfs = [
-            rheed_image.get_pattern_dataframe(extra_data=extra_data)
-            for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
-        ]
+        if self.extra_data:
+            feature_dfs = [
+                rheed_image.get_pattern_dataframe(extra_data=extra_data)
+                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+            ]
+        else:
+            feature_dfs = [
+                rheed_image.get_pattern_dataframe() for rheed_image in self.rheed_images
+            ]
 
         feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
 
