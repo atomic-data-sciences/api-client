@@ -239,6 +239,7 @@ class RHEEDImageResult(MSONable):
         left_nodes = node_df.loc[node_df["centroid_1"] < reflection_plane]
         right_nodes = node_df.loc[node_df["centroid_1"] > reflection_plane]
 
+        # Left to right
         left_to_right = left_nodes.copy()
         left_to_right["centroid_1"] = reflection_plane + (
             reflection_plane - left_to_right["centroid_1"]
@@ -246,17 +247,14 @@ class RHEEDImageResult(MSONable):
         left_to_right["intensity_centroid_1"] = -left_to_right["intensity_centroid_1"]
         left_to_right["relative_centroid_1"] = -left_to_right["relative_centroid_1"]
 
-        new_max = (
+        left_to_right["bbox_maxc"] = (
             reflection_plane + (reflection_plane - left_to_right["bbox_minc"])
         ).astype(int)
-        new_min = (
+        left_to_right["bbox_minc"] = (
             reflection_plane + (reflection_plane - left_to_right["bbox_maxc"])
         ).astype(int)
-        left_to_right["bbox_maxc"] = new_max
-        left_to_right["bbox_minc"] = new_min
 
-        left_to_right["node_id"] = left_to_right["node_id"] + 1000
-
+        # Right to left
         right_to_left = right_nodes.copy()
         right_to_left["centroid_1"] = reflection_plane - (
             right_to_left["centroid_1"] - reflection_plane
@@ -264,16 +262,12 @@ class RHEEDImageResult(MSONable):
         right_to_left["intensity_centroid_1"] = -right_to_left["intensity_centroid_1"]
         right_to_left["relative_centroid_1"] = -right_to_left["relative_centroid_1"]
 
-        new_max = (
+        right_to_left["bbox_minc"] = (
             reflection_plane - (right_to_left["bbox_minc"] - reflection_plane)
         ).astype(int)
-        new_min = (
+        right_to_left["bbox_maxc"] = (
             reflection_plane - (right_to_left["bbox_maxc"] - reflection_plane)
         ).astype(int)
-
-        right_to_left["bbox_minc"] = new_min
-        right_to_left["bbox_maxc"] = new_max
-        right_to_left["node_id"] = right_to_left["node_id"] + 1000
 
         node_df = pd.concat(
             [node_df, left_to_right, right_to_left], axis=0
