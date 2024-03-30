@@ -2,7 +2,9 @@ import numpy as np
 import numpy.typing as npt
 
 
-def normalize_pixel_dimensions(points: npt.NDArray, image_shape: tuple[int, int]) -> npt.NDArray:
+def normalize_pixel_dimensions(
+    points: npt.NDArray, image_shape: tuple[int, int]
+) -> npt.NDArray:
     """
     Rescale pixel dimensions to a new image shape.
 
@@ -40,8 +42,10 @@ def boxes_overlap(box1, box2) -> bool:
         return False
     return True
 
-def rescale_cartesian_coordinates(points: npt.NDArray, origin=(0,0), scale: float = 1.) -> npt.NDArray:
 
+def rescale_cartesian_coordinates(
+    points: npt.NDArray, origin=(0, 0), scale: float = 1.0
+) -> npt.NDArray:
     """
     Normalize radius in polar coordinates, then convert back to cartesian to get rescaled cartesian coordinates in image dimensions.
     Args:
@@ -61,7 +65,9 @@ def rescale_cartesian_coordinates(points: npt.NDArray, origin=(0,0), scale: floa
     return np.stack([scaled_0, scaled_1], axis=1)
 
 
-def convert_to_polar_coordinates(points: npt.NDArray, origin=(0, 0), scale=1.0) -> npt.NDArray:
+def convert_to_polar_coordinates(
+    points: npt.NDArray, origin=(0, 0), scale=1.0
+) -> npt.NDArray:
     """
     Convert a set of 2D points to polar coordinates with radius and angle.
 
