@@ -13,7 +13,7 @@ from PIL import ImageDraw
 from PIL.Image import Image
 from pycocotools import mask
 
-from atomicds.core import ClientError, boxes_overlap
+from atomicds.core import ClientError, boxes_overlap, generate_graph_from_nodes
 
 tp.quiet()
 
@@ -42,7 +42,7 @@ class RHEEDImageResult(MSONable):
         self.pattern_graph = pattern_graph
         self.metadata = metadata
 
-    def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True) -> Image:
+    def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True, symmetrize: bool = False) -> Image:
         """Get diffraction pattern image with optional overlays
 
         Args:
@@ -55,9 +55,18 @@ class RHEEDImageResult(MSONable):
         """
         image = self.processed_image.copy().convert("RGBA")
         draw = ImageDraw.Draw(image)
-        if self.pattern_graph:
+
+        if symmetrize:
+            node_df = pd.DataFrame.from_dict(
+                dict(self.pattern_graph.nodes(data=True)), orient="index"
+            )
+            _, pattern_graph = self._symmetrize(node_df)
+        else:
+            pattern_graph = self.pattern_graph
+
+        if pattern_graph:
             masks = []
-            for _, node_data in self.pattern_graph.nodes.data():
+            for _, node_data in pattern_graph.nodes.data():
                 if show_mask:
                     mask_rle = node_data.get("mask_rle")
                     mask_width = node_data.get("mask_width")
@@ -69,7 +78,7 @@ class RHEEDImageResult(MSONable):
                             "size": (mask_height, mask_width),
                         }
                         masks.append(mask.decode(mask_dict))  # type: ignore  # noqa: PGH003
-
+ 
                 if show_spot_nodes:
                     # Draw nodes
                     y = node_data.get("centroid_0")
@@ -118,7 +127,7 @@ class RHEEDImageResult(MSONable):
             )
 
         node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
-        node_df = self._symmetrize(node_df)
+        node_df, _ = self._symmetrize(node_df)
 
         image_array = np.array(self.processed_image)
 
@@ -213,7 +222,7 @@ class RHEEDImageResult(MSONable):
         node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
 
         if symmetrize:
-            node_df = self._symmetrize(node_df)
+            node_df, _ = self._symmetrize(node_df)
 
         extra_data_df = pd.DataFrame.from_records(
             [{"data_id": self.data_id} | extra_data]
@@ -240,6 +249,78 @@ class RHEEDImageResult(MSONable):
     @staticmethod
     def _symmetrize(node_df: pd.DataFrame):
         """Symmetrize a DataFrame object containing RHEED image node data"""
+
+        def merge_masks(masks: list[str], height, width) -> str:
+            """Merge a list of RLE masks using logical OR"""
+            mask_objs = [mask.decode({"counts": mm, "size": (height, width)}) for mm in masks]
+            merged_mask = np.asfortranarray(np.logical_or.reduce(mask_objs))
+            return mask.encode(merged_mask)
+        
+        def merge_overlaps(node_df):
+            """Merge overlapping nodes in a DataFrame object. Use recursively until no overlaps remain."""
+            
+            first_row = node_df.iloc[[0]]
+            original_dtypes = first_row.dtypes
+
+            agg_dict = {
+                    "centroid_0": "mean",
+                    "centroid_1": "mean",
+                    "intensity_centroid_0": "mean",
+                    "intensity_centroid_1": "mean",
+                    "relative_centroid_0": "mean",
+                    "relative_centroid_1": "mean",
+                    "bbox_minc": "mean",
+                    "bbox_minr": "mean",
+                    "bbox_maxc": "mean",
+                    "bbox_maxr": "mean",
+                    "area": "mean",
+                    "node_id": "min",
+                    "pattern_id": lambda x: x.iloc[0],
+                    "specular_origin_0": "mean",
+                    "specular_origin_1": "mean",
+                    "center_distance": "mean",
+                    "fwhm_0": "mean",
+                    "fwhm_1": "mean",
+                    "mask_rle": lambda x: x.tolist(),
+                    "mask_width": lambda x: x.iloc[0],
+                    "mask_height": lambda x: x.iloc[0],
+                    "uuid": lambda x: x.iloc[0],
+                    "oscillation_period_seconds": "mean",
+                    "eccentricity": "mean",
+                    "axis_major_length": "mean",
+                    "axis_minor_length": "mean",
+                    "bbox_intensity": "mean",
+                    "spot_area": "mean",
+                    "streak_area": "mean",
+                }
+
+            new_df = pd.DataFrame()
+            for i in range(
+                len(node_df)
+            ): 
+                current_bbox = node_df.iloc[i][["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]
+                overlapping_nodes = node_df[node_df.apply(
+                        lambda row: boxes_overlap(current_bbox, row[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]), axis=1)]
+                
+                merged_row = overlapping_nodes.agg(
+                    agg_dict
+                    )
+
+                new_mask = merge_masks(merged_row["mask_rle"], merged_row["mask_height"], merged_row["mask_width"])['counts']
+                merged_row["mask_rle"] = new_mask
+                
+                new_df = pd.concat([new_df, merged_row], axis=1)
+                
+            new_df = new_df.T.astype(original_dtypes).reset_index(drop=True)
+            agg_dict["mask_rle"] = lambda x: merge_masks(x, new_df["mask_height"].iloc[0], new_df["mask_width"].iloc[0])['counts']
+            new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
+
+            # relabel node_id > 1000 to monotonically increase from the largest ID < 1000            
+            while new_df["node_id"].max() > 1000:
+                max_id = new_df.loc[new_df["node_id"] < 1000]["node_id"].max()
+                new_df.loc[new_df["node_id"] == new_df["node_id"].max(), "node_id"] = max_id + 1
+
+            return new_df
 
         reflection_plane = node_df["specular_origin_1"].mean()
 
@@ -286,76 +367,25 @@ class RHEEDImageResult(MSONable):
             [node_df, left_to_right, right_to_left], axis=0
         ).reset_index(drop=True)
 
-        # print(node_df[["node_id"]]) #.head(1))
-        # print(node_df[["node_id"]].tail(1))
-
         if node_df.empty:
             return node_df
 
-        first_row = node_df.iloc[[0]].drop(columns=["last_updated", "version"])
-        original_dtypes = first_row.dtypes
+        node_df = node_df.drop(columns=["last_updated", "version"])        
 
-        # merge rows with overlapping bounding boxes into one row
-        drop_rows = []
-        add_rows = []
+        new_df = merge_overlaps(node_df)
+        while len(new_df) != len(node_df):
+            node_df = new_df
+            new_df = merge_overlaps(node_df)   
 
-        agg_dict = {
-                    "centroid_0": "mean",
-                    "centroid_1": "mean",
-                    "intensity_centroid_0": "mean",
-                    "intensity_centroid_1": "mean",
-                    "relative_centroid_0": "mean",
-                    "relative_centroid_1": "mean",
-                    "bbox_minc": "mean",
-                    "bbox_minr": "mean",
-                    "bbox_maxc": "mean",
-                    "bbox_maxr": "mean",
-                    "area": "mean",
-                    "node_id": "min",
-                    "pattern_id": lambda x: x.iloc[0],
-                    "specular_origin_0": "mean",
-                    "specular_origin_1": "mean",
-                    "center_distance": "mean",
-                    "fwhm_0": "mean",
-                    "fwhm_1": "mean",
-                    "mask_rle": lambda x: x.iloc[0],
-                    "mask_width": lambda x: x.iloc[0],
-                    "mask_height": lambda x: x.iloc[0],
-                    "uuid": lambda x: x.iloc[0],
-                    "oscillation_period_seconds": "mean",
-                    "eccentricity": "mean",
-                    "axis_major_length": "mean",
-                    "axis_minor_length": "mean",
-                    "bbox_intensity": "mean",
-                    "spot_area": "mean",
-                    "streak_area": "mean",
-                }
-        
-        new_df = pd.DataFrame()
-        for i in range(
-            len(node_df) - 1
-        ):  # -1 so we don't try to pair the last row with anything
-            # merged_row = pd.DataFrame()
-            current_bbox = node_df.iloc[i][["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]
-            overlapping_nodes = node_df[node_df.apply(
-                    lambda row: boxes_overlap(current_bbox, row[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]), axis=1)]
-            
-            merged_row = overlapping_nodes.agg(
-               agg_dict
-            )
-            
-            new_df = pd.concat([new_df, merged_row], axis=1)
-            
-        new_df = new_df.T.astype(original_dtypes).reset_index(drop=True)
-        new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
-       
-        return new_df
+        new_pattern_graph = generate_graph_from_nodes(new_df)
 
-
+        return new_df, new_pattern_graph
+    
+    
 # TODO: Add tests for RHEEDImageCollection
 class RHEEDImageCollection(MSONable):
     def __init__(
-        self, rheed_images: list[RHEEDImageResult], extra_data: list[dict] | None = None
+        self, rheed_images: list[RHEEDImageResult], extra_data: list[dict] | None = None, sort_key: str | None = None
     ):
         """Collection of RHEED images
 
@@ -379,8 +409,11 @@ class RHEEDImageCollection(MSONable):
 
         self.rheed_images = rheed_images
         self.extra_data = extra_data
+        if sort_key is None:
+            sort_key = self.extra_data[0].keys()[0]
+        self._sort_by_extra_data_key(sort_key)
 
-    def align_fingerprints(self, node_df: pd.DataFrame | None = None) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
+    def align_fingerprints(self, node_df: pd.DataFrame | None = None, inplace: bool = False) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
         """
         Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering
         features across RHEED patterns, based on relative position to the center feature.
@@ -396,22 +429,14 @@ class RHEEDImageCollection(MSONable):
         data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
 
         if node_df is None:
-            node_data = []
-            for ind, rheed_image in enumerate(self.rheed_images):
-                if rheed_image.pattern_graph is None:
-                    raise ClientError(
-                        f"Unable to align fingerprints as rheed image {ind} has no graph data."
-                    )
-                node_data.append(
-                    pd.DataFrame.from_dict(
-                        dict(rheed_image.pattern_graph.nodes(data=True)), orient="index"
-                    )
-                )
+            print('symmetrizing')
+            node_dfs = [rheed_image.get_pattern_dataframe(
+                        extra_data=extra_data, symmetrize=True)[0]
+                    for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+                ]
 
-            node_df = pd.concat(
-                node_data,
-                axis=0,
-            ).reset_index(drop=True)
+            node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
+            print(node_df.loc[node_df["pattern_id"] == 0])
 
         labels, _ = pd.factorize(node_df["uuid"])
         node_df["pattern_id"] = labels
@@ -428,13 +453,20 @@ class RHEEDImageCollection(MSONable):
         splits = [group for _, group in linked_df.groupby("pattern_id")]
         for split, rheed_image in zip(splits, self.rheed_images):
             mapping = dict(zip(split["node_id"], split["particle"]))
+            # don't relabel the specular 0 node.
+            if 0 in mapping.keys():
+                mapping.pop(0)
             rheed_image.pattern_graph = nx.relabel_nodes(  # type: ignore  # noqa: PGH003
                 rheed_image.pattern_graph,  # type: ignore  # noqa: PGH003
                 mapping,
             )
+            for node in rheed_image.pattern_graph.nodes:
+                rheed_image.pattern_graph.nodes[node]["node_id"] = node
+
             rheed_images.append(rheed_image)
 
-        self.rheed_images = rheed_images
+        if inplace:
+            self.rheed_images = rheed_images
 
         return rheed_images  # linked_df
 
@@ -487,6 +519,9 @@ class RHEEDImageCollection(MSONable):
             for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
         ]
 
+        # for ii, rheed_image in enumerate(self.rheed_images):
+        #     rheed_image.update_pattern_graph_from_nodes(node_dfs[ii])
+
         node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
         feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
 
@@ -506,6 +541,17 @@ class RHEEDImageCollection(MSONable):
             )
 
         return node_df, feature_df  # type: ignore  # noqa: PGH003
+    
+    def _sort_by_extra_data_key(self, key: str):
+        """Sort the RHEEDImageCollection by an extra data key"""
+        if key not in self.extra_data[0]:
+            raise ValueError(f"Extra data key {key} not found in the extra data dictionary.")
+
+        sort_order = [extra_data[key] for extra_data in self.extra_data]
+        sorted_indices = np.argsort(sort_order)
+
+        self.rheed_images = [self.rheed_images[idx] for idx in sorted_indices]
+        self.extra_data = [self.extra_data[idx] for idx in sorted_indices]
 
     def __getitem__(self, key: int) -> RHEEDImageResult:
         return self.rheed_images[key]
