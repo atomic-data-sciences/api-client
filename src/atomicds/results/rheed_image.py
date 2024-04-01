@@ -250,6 +250,12 @@ class RHEEDImageResult(MSONable):
     def _symmetrize(node_df: pd.DataFrame):
         """Symmetrize a DataFrame object containing RHEED image node data"""
 
+        def reflect_mask(mask_obj: str, height, width) -> str:
+            """Reflect a list of RLE masks across the vertical axis"""
+            mask_obj = mask.decode({"counts": mask_obj, "size": (height, width)})
+            reflected_mask = np.asfortranarray(np.fliplr(mask_obj))
+            return mask.encode(reflected_mask)['counts']
+
         def merge_masks(masks: list[str], height, width) -> str:
             """Merge a list of RLE masks using logical OR"""
             mask_objs = [mask.decode({"counts": mm, "size": (height, width)}) for mm in masks]
@@ -333,6 +339,9 @@ class RHEEDImageResult(MSONable):
         )
         left_to_right["intensity_centroid_1"] = -left_to_right["intensity_centroid_1"]
         left_to_right["relative_centroid_1"] = -left_to_right["relative_centroid_1"]
+        left_to_right["mask_rle"] = left_to_right["mask_rle"].apply(
+            lambda x: reflect_mask(x, left_to_right["mask_height"].iloc[0], left_to_right["mask_width"].iloc[0])
+        )
 
         new_max = (
             reflection_plane + (reflection_plane - left_to_right["bbox_minc"])
@@ -351,6 +360,9 @@ class RHEEDImageResult(MSONable):
         )
         right_to_left["intensity_centroid_1"] = -right_to_left["intensity_centroid_1"]
         right_to_left["relative_centroid_1"] = -right_to_left["relative_centroid_1"]
+        right_to_left["mask_rle"] = right_to_left["mask_rle"].apply(
+            lambda x: reflect_mask(x, right_to_left["mask_height"].iloc[0], right_to_left["mask_width"].iloc[0])
+        )
 
         new_max = (
             reflection_plane - (right_to_left["bbox_minc"] - reflection_plane)
@@ -374,7 +386,7 @@ class RHEEDImageResult(MSONable):
 
         new_df = merge_overlaps(node_df)
         while len(new_df) != len(node_df):
-            node_df = new_df
+            node_df = new_df.copy(deep=True)
             new_df = merge_overlaps(node_df)   
 
         new_pattern_graph = generate_graph_from_nodes(new_df)
@@ -409,9 +421,10 @@ class RHEEDImageCollection(MSONable):
 
         self.rheed_images = rheed_images
         self.extra_data = extra_data
-        if sort_key is None:
-            sort_key = self.extra_data[0].keys()[0]
-        self._sort_by_extra_data_key(sort_key)
+        self.sort_key = sort_key
+        if self.sort_key is None:
+            self.sort_key = list(self.extra_data[0].keys())[0]
+        self._sort_by_extra_data_key(self.sort_key)
 
     def align_fingerprints(self, node_df: pd.DataFrame | None = None, inplace: bool = False) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
         """
@@ -429,14 +442,12 @@ class RHEEDImageCollection(MSONable):
         data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
 
         if node_df is None:
-            print('symmetrizing')
             node_dfs = [rheed_image.get_pattern_dataframe(
                         extra_data=extra_data, symmetrize=True)[0]
                     for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
                 ]
 
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
-            print(node_df.loc[node_df["pattern_id"] == 0])
 
         labels, _ = pd.factorize(node_df["uuid"])
         node_df["pattern_id"] = labels
@@ -444,10 +455,12 @@ class RHEEDImageCollection(MSONable):
         linked_df = tp.link(
             f=node_df,
             search_range=np.sqrt(np.sum(np.square(image_scale))) * 0.1,
-            memory=len(data_ids),
+            memory=1,
             t_column="pattern_id",
-            pos_columns=["intensity_centroid_1", "intensity_centroid_0"],
+            pos_columns=["relative_centroid_1", "relative_centroid_0"],
         )
+
+        # print(linked_df[["pattern_id", "node_id", "particle","intensity_centroid_0", "intensity_centroid_1"]])
 
         rheed_images: list[RHEEDImageResult] = []
         splits = [group for _, group in linked_df.groupby("pattern_id")]
@@ -456,6 +469,7 @@ class RHEEDImageCollection(MSONable):
             # don't relabel the specular 0 node.
             if 0 in mapping.keys():
                 mapping.pop(0)
+
             rheed_image.pattern_graph = nx.relabel_nodes(  # type: ignore  # noqa: PGH003
                 rheed_image.pattern_graph,  # type: ignore  # noqa: PGH003
                 mapping,
@@ -468,7 +482,7 @@ class RHEEDImageCollection(MSONable):
         if inplace:
             self.rheed_images = rheed_images
 
-        return rheed_images  # linked_df
+        return self.__class__(rheed_images, self.extra_data, self.sort_key)  # linked_df
 
     def get_pattern_dataframe(
         self, streamline: bool = True, normalize: bool = True, symmetrize: bool = False
@@ -553,8 +567,13 @@ class RHEEDImageCollection(MSONable):
         self.rheed_images = [self.rheed_images[idx] for idx in sorted_indices]
         self.extra_data = [self.extra_data[idx] for idx in sorted_indices]
 
-    def __getitem__(self, key: int) -> RHEEDImageResult:
-        return self.rheed_images[key]
+    def __getitem__(self, key: int | slice) -> RHEEDImageResult:
+        if isinstance(key, int):
+            return self.rheed_images[key]
+        elif isinstance(key, slice):
+            return self.__class__(self.rheed_images[key], self.extra_data[key], self.sort_key)
+        else:
+            raise ValueError("Key must be an integer or a slice object.")
 
     def __len__(self) -> int:
         return len(self.rheed_images)
