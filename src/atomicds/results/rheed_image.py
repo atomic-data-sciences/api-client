@@ -439,7 +439,7 @@ class RHEEDImageCollection(MSONable):
             rheed_image.processed_image.size for rheed_image in self.rheed_images
         ]
         image_scale = np.amax(image_scales, axis=0)
-        data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
+        # data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
 
         if node_df is None:
             node_dfs = [rheed_image.get_pattern_dataframe(
