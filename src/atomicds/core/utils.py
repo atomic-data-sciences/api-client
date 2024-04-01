@@ -1,7 +1,8 @@
+import networkx as nx
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import networkx as nx
+
 
 def normalize_pixel_dimensions(
     points: npt.NDArray, image_shape: tuple[int, int]
@@ -51,10 +52,7 @@ def regions_horizontal_overlapping(node_df: pd.DataFrame, start_node: int, end_n
     right_node = start_node if start_node["bbox_minc"] > end_node["bbox_minc"] else end_node
     left_node_max = left_node["bbox_maxc"]
     right_node_min = right_node["bbox_minc"]
-    if left_node_max > right_node_min:
-        return True
-    else:
-        return False
+    return left_node_max > right_node_min
 
 
 def rescale_cartesian_coordinates(
@@ -108,14 +106,14 @@ def generate_graph_from_nodes(node_df: pd.DataFrame):
         """Update a pattern graph with new node data from a DataFrame object"""
 
         pattern_graph = nx.Graph()
-        
+
         for _, row in node_df.iterrows():
             node_id = row['node_id']
             # Use all other columns as attributes
             attributes = row.drop('node_id').to_dict()
             pattern_graph.add_node(node_id, **attributes)
-        
-        
+
+
         edge_df = pd.merge(
             node_df[["node_id", "centroid_1", "centroid_0"]].copy(deep=True),
             node_df[["node_id", "centroid_1", "centroid_0"]].copy(deep=True),
@@ -156,7 +154,7 @@ def generate_graph_from_nodes(node_df: pd.DataFrame):
                 "horizontal_overlap",
             ]
         ].copy()
-        
+
         edge_df = edge_df.drop_duplicates(
             subset=["start_node", "end_node"], keep="first"
         ).reset_index(drop=True)

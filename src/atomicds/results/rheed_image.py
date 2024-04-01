@@ -13,7 +13,7 @@ from PIL import ImageDraw
 from PIL.Image import Image
 from pycocotools import mask
 
-from atomicds.core import ClientError, boxes_overlap, generate_graph_from_nodes
+from atomicds.core import boxes_overlap, generate_graph_from_nodes
 
 tp.quiet()
 
@@ -78,7 +78,7 @@ class RHEEDImageResult(MSONable):
                             "size": (mask_height, mask_width),
                         }
                         masks.append(mask.decode(mask_dict))  # type: ignore  # noqa: PGH003
- 
+
                 if show_spot_nodes:
                     # Draw nodes
                     y = node_data.get("centroid_0")
@@ -261,10 +261,10 @@ class RHEEDImageResult(MSONable):
             mask_objs = [mask.decode({"counts": mm, "size": (height, width)}) for mm in masks]
             merged_mask = np.asfortranarray(np.logical_or.reduce(mask_objs))
             return mask.encode(merged_mask)
-        
+
         def merge_overlaps(node_df):
             """Merge overlapping nodes in a DataFrame object. Use recursively until no overlaps remain."""
-            
+
             first_row = node_df.iloc[[0]]
             original_dtypes = first_row.dtypes
 
@@ -303,25 +303,25 @@ class RHEEDImageResult(MSONable):
             new_df = pd.DataFrame()
             for i in range(
                 len(node_df)
-            ): 
+            ):
                 current_bbox = node_df.iloc[i][["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]
                 overlapping_nodes = node_df[node_df.apply(
                         lambda row: boxes_overlap(current_bbox, row[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]), axis=1)]
-                
+
                 merged_row = overlapping_nodes.agg(
                     agg_dict
                     )
 
                 new_mask = merge_masks(merged_row["mask_rle"], merged_row["mask_height"], merged_row["mask_width"])['counts']
                 merged_row["mask_rle"] = new_mask
-                
+
                 new_df = pd.concat([new_df, merged_row], axis=1)
-                
+
             new_df = new_df.T.astype(original_dtypes).reset_index(drop=True)
             agg_dict["mask_rle"] = lambda x: merge_masks(x, new_df["mask_height"].iloc[0], new_df["mask_width"].iloc[0])['counts']
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
-            # relabel node_id > 1000 to monotonically increase from the largest ID < 1000            
+            # relabel node_id > 1000 to monotonically increase from the largest ID < 1000
             while new_df["node_id"].max() > 1000:
                 max_id = new_df.loc[new_df["node_id"] < 1000]["node_id"].max()
                 new_df.loc[new_df["node_id"] == new_df["node_id"].max(), "node_id"] = max_id + 1
@@ -382,18 +382,18 @@ class RHEEDImageResult(MSONable):
         if node_df.empty:
             return node_df
 
-        node_df = node_df.drop(columns=["last_updated", "version"])        
+        node_df = node_df.drop(columns=["last_updated", "version"])
 
         new_df = merge_overlaps(node_df)
         while len(new_df) != len(node_df):
             node_df = new_df.copy(deep=True)
-            new_df = merge_overlaps(node_df)   
+            new_df = merge_overlaps(node_df)
 
         new_pattern_graph = generate_graph_from_nodes(new_df)
 
         return new_df, new_pattern_graph
-    
-    
+
+
 # TODO: Add tests for RHEEDImageCollection
 class RHEEDImageCollection(MSONable):
     def __init__(
@@ -467,7 +467,7 @@ class RHEEDImageCollection(MSONable):
         for split, rheed_image in zip(splits, self.rheed_images):
             mapping = dict(zip(split["node_id"], split["particle"]))
             # don't relabel the specular 0 node.
-            if 0 in mapping.keys():
+            if 0 in mapping:
                 mapping.pop(0)
 
             rheed_image.pattern_graph = nx.relabel_nodes(  # type: ignore  # noqa: PGH003
@@ -563,7 +563,7 @@ class RHEEDImageCollection(MSONable):
             # )
 
         return node_df, feature_df  # type: ignore  # noqa: PGH003
-    
+
     def _sort_by_extra_data_key(self, key: str):
         """Sort the RHEEDImageCollection by an extra data key"""
         if key not in self.extra_data[0]:
