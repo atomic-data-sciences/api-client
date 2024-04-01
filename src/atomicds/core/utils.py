@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.typing as npt
-
+import pandas as pd
+import networkx as nx
 
 def normalize_pixel_dimensions(
     points: npt.NDArray, image_shape: tuple[int, int]
@@ -41,6 +42,19 @@ def boxes_overlap(box1, box2) -> bool:
     if xmax1 < xmin2 or xmax2 < xmin1 or ymax1 < ymin2 or ymax2 < ymin1:
         return False
     return True
+
+def regions_horizontal_overlapping(node_df: pd.DataFrame, start_node: int, end_node: int):
+    """Check if two regions are horizontally overlapping"""
+    start_node = node_df.loc[node_df["node_id"] == start_node].iloc[0]
+    end_node = node_df.loc[node_df["node_id"] == end_node].iloc[0]
+    left_node = start_node if start_node["bbox_minc"] < end_node["bbox_minc"] else end_node
+    right_node = start_node if start_node["bbox_minc"] > end_node["bbox_minc"] else end_node
+    left_node_max = left_node["bbox_maxc"]
+    right_node_min = right_node["bbox_minc"]
+    if left_node_max > right_node_min:
+        return True
+    else:
+        return False
 
 
 def rescale_cartesian_coordinates(
@@ -87,3 +101,68 @@ def convert_to_polar_coordinates(
 
     # Stack the radius and angle into a single array
     return np.stack([radius, angle], axis=1)
+
+
+def generate_graph_from_nodes(node_df: pd.DataFrame):
+
+        """Update a pattern graph with new node data from a DataFrame object"""
+
+        pattern_graph = nx.Graph()
+        
+        for _, row in node_df.iterrows():
+            node_id = row['node_id']
+            # Use all other columns as attributes
+            attributes = row.drop('node_id').to_dict()
+            pattern_graph.add_node(node_id, **attributes)
+        
+        
+        edge_df = pd.merge(
+            node_df[["node_id", "centroid_1", "centroid_0"]].copy(deep=True),
+            node_df[["node_id", "centroid_1", "centroid_0"]].copy(deep=True),
+            how="cross",
+        )
+        edge_df = edge_df.loc[edge_df["node_id_x"] < edge_df["node_id_y"]]
+        edge_df = edge_df.rename(
+            columns={"node_id_x": "start_node", "node_id_y": "end_node"}
+        )
+
+        if len(edge_df) == 0:
+            edge_df["horizontal_overlap"] = False
+        else:
+            edge_df["horizontal_overlap"] = edge_df.apply(
+                lambda x: regions_horizontal_overlapping(
+                    node_df, x["start_node"], x["end_node"]
+                ),
+                axis=1,
+            )
+
+        edge_df["weight"] = np.sqrt(
+            (edge_df["centroid_1_x"] - edge_df["centroid_1_y"]) ** 2
+            + (edge_df["centroid_0_x"] - edge_df["centroid_0_y"]) ** 2
+        )
+        edge_df["horizontal_weight"] = np.abs(
+            edge_df["centroid_1_x"] - edge_df["centroid_1_y"]
+        )
+        edge_df["vertical_weight"] = np.abs(
+            edge_df["centroid_0_x"] - edge_df["centroid_0_y"]
+        )
+        edge_df = edge_df[
+            [
+                "start_node",
+                "end_node",
+                "weight",
+                "horizontal_weight",
+                "vertical_weight",
+                "horizontal_overlap",
+            ]
+        ].copy()
+        
+        edge_df = edge_df.drop_duplicates(
+            subset=["start_node", "end_node"], keep="first"
+        ).reset_index(drop=True)
+
+        pattern_graph.add_edges_from(
+            edge_df[["start_node", "end_node"]].to_numpy()
+        )
+
+        return pattern_graph
