@@ -457,7 +457,7 @@ class RHEEDImageCollection(MSONable):
             search_range=np.sqrt(np.sum(np.square(image_scale))) * 0.1,
             memory=1,
             t_column="pattern_id",
-            pos_columns=["relative_centroid_1", "relative_centroid_0"],
+            pos_columns=["intensity_centroid_1", "intensity_centroid_0"],
         )
 
         # print(linked_df[["pattern_id", "node_id", "particle","intensity_centroid_0", "intensity_centroid_1"]])
@@ -550,9 +550,17 @@ class RHEEDImageCollection(MSONable):
 
         if normalize:
             # min max normalization
-            feature_df = (feature_df - feature_df.min()) / (
-                feature_df.max() - feature_df.min()
-            )
+            # print(feature_df[node_feature_cols])
+            # feature_df[node_feature_cols] = (feature_df[node_feature_cols] - feature_df[node_feature_cols].min()) / (
+            #     feature_df[node_feature_cols].max() - feature_df[node_feature_cols].min()
+            # )
+            for col in node_feature_cols:
+                feature_df[col] = (feature_df[col] - feature_df[col].min()) / (
+                    feature_df[col].max() - feature_df[col].min()
+                )
+            # feature_df[node_feature_cols].apply(
+            #     lambda x: (x - x.min()) / (x.max() - x.min()), inp
+            # )
 
         return node_df, feature_df  # type: ignore  # noqa: PGH003
     
