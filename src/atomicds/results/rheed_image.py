@@ -240,7 +240,7 @@ class RHEEDImageResult(MSONable):
             node_df, _ = self._symmetrize(node_df)
 
         extra_data_df = pd.DataFrame.from_records(
-            [{"data_id": self.data_id} | extra_data]
+            [{"data_id": self.processed_data_id} | extra_data]
         )
 
         feature_df: pd.DataFrame = node_df.pivot_table(
@@ -543,8 +543,6 @@ class RHEEDImageCollection(MSONable):
             t_column="pattern_id",
             pos_columns=["relative_centroid_1", "relative_centroid_0"],
         )
-
-        # print(linked_df[["pattern_id", "node_id", "particle","intensity_centroid_0", "intensity_centroid_1"]])
 
         rheed_images: list[RHEEDImageResult] = []
         splits = [group for _, group in linked_df.groupby("pattern_id")]
