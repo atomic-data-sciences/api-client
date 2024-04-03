@@ -250,11 +250,22 @@ class RHEEDImageResult(MSONable):
     def _symmetrize(node_df: pd.DataFrame):
         """Symmetrize a DataFrame object containing RHEED image node data"""
 
-        def reflect_mask(mask_obj: str, height, width) -> str:
+        def reflect_mask(mask_obj: str, height: int, width: int, origin: float) -> str:
             """Reflect a list of RLE masks across the vertical axis"""
+
             mask_obj = mask.decode({"counts": mask_obj, "size": (height, width)})
-            reflected_mask = np.asfortranarray(np.fliplr(mask_obj))
-            return mask.encode(reflected_mask)['counts']
+            origin = int(np.round(origin, 0))
+            num_cols_to_mirror = mask_obj.shape[1] - origin
+
+            reflected_array = mask_obj.copy()
+
+            # For columns before the origin position, swap them with their mirrored counterparts
+            for i in range(origin, origin - num_cols_to_mirror, -1):
+                swap_index = origin + (origin - i)
+                if swap_index < mask_obj.shape[1]:
+                    reflected_array[:, i], reflected_array[:, swap_index] = mask_obj[:, swap_index].copy(), mask_obj[:, i].copy()
+            
+            return mask.encode(np.asfortranarray(reflected_array))['counts']
 
         def merge_masks(masks: list[str], height, width) -> str:
             """Merge a list of RLE masks using logical OR"""
@@ -340,7 +351,7 @@ class RHEEDImageResult(MSONable):
         left_to_right["intensity_centroid_1"] = -left_to_right["intensity_centroid_1"]
         left_to_right["relative_centroid_1"] = -left_to_right["relative_centroid_1"]
         left_to_right["mask_rle"] = left_to_right["mask_rle"].apply(
-            lambda x: reflect_mask(x, left_to_right["mask_height"].iloc[0], left_to_right["mask_width"].iloc[0])
+            lambda x: reflect_mask(x, left_to_right["mask_height"].iloc[0], left_to_right["mask_width"].iloc[0], left_to_right["specular_origin_1"].iloc[0])
         )
 
         new_max = (
@@ -361,7 +372,7 @@ class RHEEDImageResult(MSONable):
         right_to_left["intensity_centroid_1"] = -right_to_left["intensity_centroid_1"]
         right_to_left["relative_centroid_1"] = -right_to_left["relative_centroid_1"]
         right_to_left["mask_rle"] = right_to_left["mask_rle"].apply(
-            lambda x: reflect_mask(x, right_to_left["mask_height"].iloc[0], right_to_left["mask_width"].iloc[0])
+            lambda x: reflect_mask(x, right_to_left["mask_height"].iloc[0], right_to_left["mask_width"].iloc[0], right_to_left["specular_origin_1"].iloc[0])
         )
 
         new_max = (
