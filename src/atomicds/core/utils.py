@@ -114,8 +114,7 @@ def generate_graph_from_nodes(node_df: pd.DataFrame):
             pattern_graph.add_node(node_id, **attributes)
 
 
-        edge_df = pd.merge(
-            node_df[["node_id", "centroid_1", "centroid_0"]].copy(deep=True),
+        edge_df = node_df[["node_id", "centroid_1", "centroid_0"]].copy(deep=True).merge(
             node_df[["node_id", "centroid_1", "centroid_0"]].copy(deep=True),
             how="cross",
         )

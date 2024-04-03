@@ -282,6 +282,7 @@ class RHEEDImageResult(MSONable):
             merged_mask = np.asfortranarray(np.logical_or.reduce(mask_objs))
             return mask.encode(merged_mask)
 
+
         def merge_overlaps(node_df):
             """Merge overlapping nodes in a DataFrame object. Use recursively until no overlaps remain."""
 
@@ -326,7 +327,7 @@ class RHEEDImageResult(MSONable):
             ):
                 current_bbox = node_df.iloc[i][["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]
                 overlapping_nodes = node_df[node_df.apply(
-                        lambda row: boxes_overlap(current_bbox, row[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]), axis=1)]
+                        lambda row, current_bbox=current_bbox: boxes_overlap(current_bbox, row[["bbox_minc", "bbox_minr", "bbox_maxc", "bbox_maxr"]]), axis=1)]
 
                 merged_row = overlapping_nodes.agg(
                     agg_dict
@@ -441,7 +442,7 @@ class RHEEDImageCollection(MSONable):
         self._extra_data = extra_data
         self._sort_key = sort_key
         if self._sort_key is None:
-            self._sort_key = list(self._extra_data[0].keys())[0]
+            self._sort_key = next(iter(self._extra_data[0].keys()))
         self._sort_by_extra_data_key(self._sort_key)
 
 
@@ -557,16 +558,14 @@ class RHEEDImageCollection(MSONable):
             for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
         ]
             feature_dfs = [
-                rheed_image.get_pattern_dataframe(extra_data=extra_data, symmetrize=symmetrize)[1]
+                rheed_image.get_pattern_dataframe(extra_data=self.extra_data, symmetrize=symmetrize)[1]
                 for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
             ]
         else:
             node_dfs = [
-            rheed_image.get_pattern_dataframe(
-                extra_data=extra_data, symmetrize=symmetrize
-            )[0]
-            for rheed_image self.rheed_images
-        ]
+                rheed_image.get_pattern_dataframe(symmetrize=symmetrize)[0]
+                    for rheed_image in self.rheed_images
+                ]
             feature_dfs = [
                 rheed_image.get_pattern_dataframe(symmetrize=symmetrize)[1] for rheed_image in self.rheed_images
             ]
@@ -609,12 +608,14 @@ class RHEEDImageCollection(MSONable):
         self.extra_data = [self.extra_data[idx] for idx in sorted_indices]
 
     def __getitem__(self, key: int | slice) -> RHEEDImageResult:
+
         if isinstance(key, int):
             return self.rheed_images[key]
-        elif isinstance(key, slice):
+
+        if isinstance(key, slice):
             return self.__class__(self.rheed_images[key], self.extra_data[key], self.sort_key)
-        else:
-            raise ValueError("Key must be an integer or a slice object.")
+
+        return self.__class__(self.rheed_images[key], self.extra_data[key], self.sort_key)
 
     def __len__(self) -> int:
         return len(self.rheed_images)
