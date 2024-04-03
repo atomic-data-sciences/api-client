@@ -37,9 +37,18 @@ class RHEEDImageResult(MSONable):
 
         metadata = metadata or {}
 
+        processed_data_id = None  # type: ignore  # noqa: PGH003
+
+        if pattern_graph is not None:
+            min_node_index: int = min(pattern_graph.nodes(), key=lambda x: int(x))
+            processed_data_id: str = pattern_graph.nodes(data=True)[min_node_index][  # type: ignore  # noqa: PGH003
+                "uuid"
+            ]
+
         self.data_id = data_id
         self.processed_image = processed_image
         self.pattern_graph = pattern_graph
+        self.processed_data_id = processed_data_id
         self.metadata = metadata
 
     def get_plot(self, show_mask: bool = True, show_spot_nodes: bool = True, symmetrize: bool = False) -> Image:
@@ -344,6 +353,7 @@ class RHEEDImageResult(MSONable):
         left_nodes = node_df.loc[node_df["centroid_1"] < reflection_plane]
         right_nodes = node_df.loc[node_df["centroid_1"] > reflection_plane]
 
+        # Left to right
         left_to_right = left_nodes.copy()
         left_to_right["centroid_1"] = reflection_plane + (
             reflection_plane - left_to_right["centroid_1"]
@@ -363,6 +373,7 @@ class RHEEDImageResult(MSONable):
 
         left_to_right["node_id"] = left_to_right["node_id"] + 1000
 
+        # Right to left
         right_to_left = right_nodes.copy()
         right_to_left["centroid_1"] = reflection_plane - (
             right_to_left["centroid_1"] - reflection_plane
@@ -426,12 +437,25 @@ class RHEEDImageCollection(MSONable):
                 for node in rheed_image.pattern_graph.nodes:
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
-        self.rheed_images = rheed_images
-        self.extra_data = extra_data
-        self.sort_key = sort_key
-        if self.sort_key is None:
-            self.sort_key = list(self.extra_data[0].keys())[0]
-        self._sort_by_extra_data_key(self.sort_key)
+        self._rheed_images = rheed_images
+        self._extra_data = extra_data
+        self._sort_key = sort_key
+        if self._sort_key is None:
+            self._sort_key = list(self._extra_data[0].keys())[0]
+        self._sort_by_extra_data_key(self._sort_key)
+
+
+    @property
+    def rheed_images(self):
+        return self._rheed_images
+
+    @property
+    def extra_data(self):
+        return self._extra_data
+
+    @property
+    def sort_key(self):
+        return self._sort_key
 
     def align_fingerprints(self, node_df: pd.DataFrame | None = None, inplace: bool = False) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
         """
@@ -493,7 +517,7 @@ class RHEEDImageCollection(MSONable):
 
     def get_pattern_dataframe(
         self, streamline: bool = True, normalize: bool = True, symmetrize: bool = False
-    ) -> pd.DataFrame:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
         Args:
@@ -525,23 +549,27 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        # TODO: if extra_data is empty, zip will return []
-        node_dfs = [
+        if self.extra_data:
+            node_dfs = [
             rheed_image.get_pattern_dataframe(
                 extra_data=extra_data, symmetrize=symmetrize
             )[0]
             for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
         ]
-
-        feature_dfs = [
+            feature_dfs = [
+                rheed_image.get_pattern_dataframe(extra_data=extra_data, symmetrize=symmetrize)[1]
+                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+            ]
+        else:
+            node_dfs = [
             rheed_image.get_pattern_dataframe(
                 extra_data=extra_data, symmetrize=symmetrize
-            )[1]
-            for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+            )[0]
+            for rheed_image self.rheed_images
         ]
-
-        # for ii, rheed_image in enumerate(self.rheed_images):
-        #     rheed_image.update_pattern_graph_from_nodes(node_dfs[ii])
+            feature_dfs = [
+                rheed_image.get_pattern_dataframe(symmetrize=symmetrize)[1] for rheed_image in self.rheed_images
+            ]
 
         node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
         feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
@@ -556,18 +584,13 @@ class RHEEDImageCollection(MSONable):
             feature_df = feature_df.dropna(axis=1)
 
         if normalize:
-            # min max normalization
-            # print(feature_df[node_feature_cols])
-            # feature_df[node_feature_cols] = (feature_df[node_feature_cols] - feature_df[node_feature_cols].min()) / (
-            #     feature_df[node_feature_cols].max() - feature_df[node_feature_cols].min()
-            # )
+
             for col in node_feature_cols:
-                # feature_df[col] = (feature_df[col] - feature_df[col].min()) / (
-                #     feature_df[col].max() - feature_df[col].min()
-                # )
                 feature_df[col] = (feature_df[col] - feature_df[col].mean()) / (
                     feature_df[col].std()
                 )
+
+            # min max normalization
             # feature_df[node_feature_cols].apply(
             #     lambda x: (x - x.min()) / (x.max() - x.min()), inp
             # )
