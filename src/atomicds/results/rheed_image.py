@@ -354,14 +354,12 @@ class RHEEDImageResult(MSONable):
             lambda x: reflect_mask(x, left_to_right["mask_height"].iloc[0], left_to_right["mask_width"].iloc[0], left_to_right["specular_origin_1"].iloc[0])
         )
 
-        new_max = (
+        left_to_right["bbox_maxc"] = (
             reflection_plane + (reflection_plane - left_to_right["bbox_minc"])
         ).astype(int)
-        new_min = (
+        left_to_right["bbox_minc"] = (
             reflection_plane + (reflection_plane - left_to_right["bbox_maxc"])
         ).astype(int)
-        left_to_right["bbox_maxc"] = new_max
-        left_to_right["bbox_minc"] = new_min
 
         left_to_right["node_id"] = left_to_right["node_id"] + 1000
 
@@ -375,15 +373,13 @@ class RHEEDImageResult(MSONable):
             lambda x: reflect_mask(x, right_to_left["mask_height"].iloc[0], right_to_left["mask_width"].iloc[0], right_to_left["specular_origin_1"].iloc[0])
         )
 
-        new_max = (
+        right_to_left["bbox_maxc"] = (
             reflection_plane - (right_to_left["bbox_minc"] - reflection_plane)
         ).astype(int)
-        new_min = (
+        right_to_left["bbox_minc"] = (
             reflection_plane - (right_to_left["bbox_maxc"] - reflection_plane)
         ).astype(int)
 
-        right_to_left["bbox_minc"] = new_min
-        right_to_left["bbox_maxc"] = new_max
         right_to_left["node_id"] = right_to_left["node_id"] + 2000
 
         node_df = pd.concat(
