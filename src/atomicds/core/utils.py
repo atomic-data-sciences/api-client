@@ -113,7 +113,7 @@ def convert_to_polar_coordinates(
     return np.stack([radius, angle], axis=1)
 
 
-def generate_graph_from_nodes(node_df: pd.DataFrame):
+def generate_graph_from_nodes(node_df: pd.DataFrame) -> nx.Graph:
     """Update a pattern graph with new node data from a DataFrame object"""
 
     pattern_graph = nx.Graph()
