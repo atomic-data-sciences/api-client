@@ -264,7 +264,7 @@ class RHEEDImageResult(MSONable):
                 swap_index = origin + (origin - i)
                 if swap_index < mask_obj.shape[1]:
                     reflected_array[:, i], reflected_array[:, swap_index] = mask_obj[:, swap_index].copy(), mask_obj[:, i].copy()
-            
+
             return mask.encode(np.asfortranarray(reflected_array))['counts']
 
         def merge_masks(masks: list[str], height, width) -> str:
