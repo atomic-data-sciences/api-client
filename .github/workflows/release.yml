@@ -31,7 +31,7 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}
-        packages_dir: ./dist/
+        packages-dir: ./dist/
 
   #  docs:
   #    runs-on: ubuntu-latest
