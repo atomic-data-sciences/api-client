@@ -47,15 +47,20 @@ def boxes_overlap(box1, box2) -> bool:
 
 def regions_horizontal_overlapping(
     node_df: pd.DataFrame, start_node: int, end_node: int
-):
+) -> bool:
     """Check if two regions are horizontally overlapping"""
-    start_node = node_df.loc[node_df["node_id"] == start_node].iloc[0]
-    end_node = node_df.loc[node_df["node_id"] == end_node].iloc[0]
+    start_node_row = node_df.loc[node_df["node_id"] == start_node].iloc[0]
+    end_node_row = node_df.loc[node_df["node_id"] == end_node].iloc[0]
+
     left_node = (
-        start_node if start_node["bbox_minc"] < end_node["bbox_minc"] else end_node
+        start_node_row
+        if start_node_row["bbox_minc"] < end_node_row["bbox_minc"]
+        else end_node_row
     )
     right_node = (
-        start_node if start_node["bbox_minc"] > end_node["bbox_minc"] else end_node
+        start_node_row
+        if start_node_row["bbox_minc"] > end_node_row["bbox_minc"]
+        else end_node_row
     )
     left_node_max = left_node["bbox_maxc"]
     right_node_min = right_node["bbox_minc"]

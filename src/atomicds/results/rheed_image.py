@@ -271,19 +271,21 @@ class RHEEDImageResult(MSONable):
         def reflect_mask(mask_obj: str, height: int, width: int, origin: float) -> str:
             """Reflect a list of RLE masks across the vertical axis"""
 
-            mask_obj = mask.decode({"counts": mask_obj, "size": (height, width)})
+            mask_array: np.ndarray = mask.decode(
+                {"counts": mask_obj, "size": (height, width)}
+            )
             origin = int(np.round(origin, 0))
-            num_cols_to_mirror = mask_obj.shape[1] - origin
+            num_cols_to_mirror = mask_array.shape[1] - origin
 
-            reflected_array = mask_obj.copy()
+            reflected_array = mask_array.copy()
 
             # For columns before the origin position, swap them with their mirrored counterparts
             for i in range(origin, origin - num_cols_to_mirror, -1):
                 swap_index = origin + (origin - i)
-                if swap_index < mask_obj.shape[1]:
+                if swap_index < mask_array.shape[1]:
                     reflected_array[:, i], reflected_array[:, swap_index] = (
-                        mask_obj[:, swap_index].copy(),
-                        mask_obj[:, i].copy(),
+                        mask_array[:, swap_index].copy(),
+                        mask_array[:, i].copy(),
                     )
 
             return mask.encode(np.asfortranarray(reflected_array))["counts"]
@@ -498,7 +500,7 @@ class RHEEDImageCollection(MSONable):
 
     def align_fingerprints(
         self, node_df: pd.DataFrame | None = None, inplace: bool = False
-    ) -> tuple[pd.DataFrame, list[RHEEDImageResult]]:
+    ) -> RHEEDImageCollection:
         """
         Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering
         features across RHEED patterns, based on relative position to the center feature.
@@ -554,7 +556,7 @@ class RHEEDImageCollection(MSONable):
             rheed_images.append(rheed_image)
 
         if inplace:
-            self.rheed_images = rheed_images
+            self._rheed_images = rheed_images
 
         return self.__class__(rheed_images, self.extra_data, self.sort_key)  # linked_df
 
@@ -665,10 +667,10 @@ class RHEEDImageCollection(MSONable):
         sort_order = [extra_data[key] for extra_data in self.extra_data]
         sorted_indices = np.argsort(sort_order)
 
-        self.rheed_images = [self.rheed_images[idx] for idx in sorted_indices]
-        self.extra_data = [self.extra_data[idx] for idx in sorted_indices]
+        self._rheed_images = [self.rheed_images[idx] for idx in sorted_indices]
+        self._extra_data = [self.extra_data[idx] for idx in sorted_indices]
 
-    def __getitem__(self, key: int | slice) -> RHEEDImageResult:
+    def __getitem__(self, key: int | slice) -> RHEEDImageResult | RHEEDImageCollection:
         if isinstance(key, int):
             return self.rheed_images[key]
 
