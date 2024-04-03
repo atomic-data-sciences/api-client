@@ -268,6 +268,12 @@ class RHEEDImageResult(MSONable):
     def _symmetrize(node_df: pd.DataFrame):
         """Symmetrize a DataFrame object containing RHEED image node data"""
 
+        # def reflect_mask(mask_obj: str, height, width) -> str:
+        #     """Reflect a list of RLE masks across the vertical axis"""
+        #     mask_obj = mask.decode({"counts": mask_obj, "size": (height, width)})
+        #     reflected_mask = np.asfortranarray(np.fliplr(mask_obj))
+        #     return mask.encode(reflected_mask)['counts']
+
         def reflect_mask(mask_obj: str, height: int, width: int, origin: float) -> str:
             """Reflect a list of RLE masks across the vertical axis"""
 
@@ -382,7 +388,6 @@ class RHEEDImageResult(MSONable):
         left_nodes = node_df.loc[node_df["centroid_1"] < reflection_plane]
         right_nodes = node_df.loc[node_df["centroid_1"] > reflection_plane]
 
-        # Left to right
         left_to_right = left_nodes.copy()
         left_to_right["centroid_1"] = reflection_plane + (
             reflection_plane - left_to_right["centroid_1"]
@@ -398,16 +403,17 @@ class RHEEDImageResult(MSONable):
             )
         )
 
-        left_to_right["bbox_maxc"] = (
+        new_max = (
             reflection_plane + (reflection_plane - left_to_right["bbox_minc"])
         ).astype(int)
-        left_to_right["bbox_minc"] = (
+        new_min = (
             reflection_plane + (reflection_plane - left_to_right["bbox_maxc"])
         ).astype(int)
+        left_to_right["bbox_maxc"] = new_max
+        left_to_right["bbox_minc"] = new_min
 
         left_to_right["node_id"] = left_to_right["node_id"] + 1000
 
-        # Right to left
         right_to_left = right_nodes.copy()
         right_to_left["centroid_1"] = reflection_plane - (
             right_to_left["centroid_1"] - reflection_plane
@@ -423,13 +429,15 @@ class RHEEDImageResult(MSONable):
             )
         )
 
-        right_to_left["bbox_maxc"] = (
+        new_max = (
             reflection_plane - (right_to_left["bbox_minc"] - reflection_plane)
         ).astype(int)
-        right_to_left["bbox_minc"] = (
+        new_min = (
             reflection_plane - (right_to_left["bbox_maxc"] - reflection_plane)
         ).astype(int)
 
+        right_to_left["bbox_minc"] = new_min
+        right_to_left["bbox_maxc"] = new_max
         right_to_left["node_id"] = right_to_left["node_id"] + 2000
 
         node_df = pd.concat(
