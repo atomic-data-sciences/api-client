@@ -189,6 +189,7 @@ class RHEEDImageResult(MSONable):
         self,
         extra_data: dict | None = None,
         symmetrize: bool = False,
+        return_as_features: bool = False,
     ) -> pd.DataFrame:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
@@ -258,7 +259,10 @@ class RHEEDImageResult(MSONable):
 
         keep_cols = node_feature_cols + list(extra_data.keys())
 
-        return node_df, feature_df[keep_cols]  # type: ignore  # noqa: PGH003
+        if return_as_features:
+            return feature_df[keep_cols]
+
+        return node_df  # , feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
     @staticmethod
     def _symmetrize(node_df: pd.DataFrame):
@@ -512,8 +516,8 @@ class RHEEDImageCollection(MSONable):
         if node_df is None:
             node_dfs = [
                 rheed_image.get_pattern_dataframe(
-                    extra_data=extra_data, symmetrize=True
-                )[0]
+                    extra_data=extra_data, symmetrize=False, return_as_features=False
+                )
                 for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
             ]
 
@@ -555,7 +559,11 @@ class RHEEDImageCollection(MSONable):
         return self.__class__(rheed_images, self.extra_data, self.sort_key)  # linked_df
 
     def get_pattern_dataframe(
-        self, streamline: bool = True, normalize: bool = True, symmetrize: bool = False
+        self,
+        streamline: bool = True,
+        normalize: bool = True,
+        symmetrize: bool = False,
+        return_as_features: bool = True,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
@@ -591,23 +599,31 @@ class RHEEDImageCollection(MSONable):
         if self.extra_data:
             node_dfs = [
                 rheed_image.get_pattern_dataframe(
-                    extra_data=extra_data, symmetrize=symmetrize
-                )[0]
+                    extra_data=extra_data,
+                    symmetrize=symmetrize,
+                    return_as_features=False,
+                )
                 for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
             ]
             feature_dfs = [
                 rheed_image.get_pattern_dataframe(
-                    extra_data=self.extra_data, symmetrize=symmetrize
-                )[1]
+                    extra_data=extra_data,
+                    symmetrize=symmetrize,
+                    return_as_features=True,
+                )
                 for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
             ]
         else:
             node_dfs = [
-                rheed_image.get_pattern_dataframe(symmetrize=symmetrize)[0]
+                rheed_image.get_pattern_dataframe(
+                    symmetrize=symmetrize, return_as_features=False
+                )
                 for rheed_image in self.rheed_images
             ]
             feature_dfs = [
-                rheed_image.get_pattern_dataframe(symmetrize=symmetrize)[1]
+                rheed_image.get_pattern_dataframe(
+                    symmetrize=symmetrize, return_as_features=True
+                )
                 for rheed_image in self.rheed_images
             ]
 
@@ -634,7 +650,10 @@ class RHEEDImageCollection(MSONable):
             #     lambda x: (x - x.min()) / (x.max() - x.min()), inp
             # )
 
-        return node_df, feature_df  # type: ignore  # noqa: PGH003
+        if return_as_features:
+            return feature_df
+
+        return node_df  # , feature_df  # type: ignore  # noqa: PGH003
 
     def _sort_by_extra_data_key(self, key: str):
         """Sort the RHEEDImageCollection by an extra data key"""
