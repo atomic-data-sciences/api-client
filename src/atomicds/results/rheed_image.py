@@ -274,13 +274,9 @@ class RHEEDImageResult(MSONable):
     def _symmetrize(node_df: pd.DataFrame):
         """Symmetrize a DataFrame object containing RHEED image node data"""
 
-        # def reflect_mask(mask_obj: str, height, width) -> str:
-        #     """Reflect a list of RLE masks across the vertical axis"""
-        #     mask_obj = mask.decode({"counts": mask_obj, "size": (height, width)})
-        #     reflected_mask = np.asfortranarray(np.fliplr(mask_obj))
-        #     return mask.encode(reflected_mask)['counts']
-
-        def reflect_mask(mask_obj: str, height: int, width: int, origin: float) -> str:
+        def reflect_mask(
+            mask_obj: str, height: int, width: int, origin: float
+        ) -> str | bytes:
             """Reflect a list of RLE masks across the vertical axis"""
 
             mask_array: np.ndarray = mask.decode(
@@ -305,10 +301,11 @@ class RHEEDImageResult(MSONable):
         def merge_masks(masks: list[str], height, width) -> str:
             """Merge a list of RLE masks using logical OR"""
             mask_objs = [
-                mask.decode({"counts": mm, "size": (height, width)}) for mm in masks
+                mask.decode({"counts": mm, "size": (height, width)})  # type: ignore  # noqa: PGH003
+                for mm in masks
             ]
             merged_mask = np.asfortranarray(np.logical_or.reduce(mask_objs))
-            return mask.encode(merged_mask)
+            return mask.encode(merged_mask)  # type: ignore  # noqa: PGH003
 
         def merge_overlaps(node_df):
             """Merge overlapping nodes in a DataFrame object. Use recursively until no overlaps remain."""
@@ -365,7 +362,7 @@ class RHEEDImageResult(MSONable):
 
                 merged_row = overlapping_nodes.agg(agg_dict)
 
-                new_mask = merge_masks(
+                new_mask = merge_masks(  # type: ignore  # noqa: PGH003
                     merged_row["mask_rle"],
                     merged_row["mask_height"],
                     merged_row["mask_width"],
@@ -375,9 +372,13 @@ class RHEEDImageResult(MSONable):
                 new_df = pd.concat([new_df, merged_row], axis=1)
 
             new_df = new_df.T.astype(original_dtypes).reset_index(drop=True)
-            agg_dict["mask_rle"] = lambda x: merge_masks(
-                x, new_df["mask_height"].iloc[0], new_df["mask_width"].iloc[0]
+
+            agg_dict["mask_rle"] = lambda x: merge_masks(  # type: ignore  # noqa: PGH003
+                x,
+                new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
+                new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
             )["counts"]
+
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
             # relabel node_id > 1000 to monotonically increase from the largest ID < 1000
@@ -415,6 +416,7 @@ class RHEEDImageResult(MSONable):
         new_min = (
             reflection_plane + (reflection_plane - left_to_right["bbox_maxc"])
         ).astype(int)
+
         left_to_right["bbox_maxc"] = new_max
         left_to_right["bbox_minc"] = new_min
 
@@ -457,10 +459,10 @@ class RHEEDImageResult(MSONable):
 
         new_df = merge_overlaps(node_df)
         while len(new_df) != len(node_df):
-            node_df = new_df.copy(deep=True)
+            node_df = new_df.copy(deep=True)  # type: ignore  # noqa: PGH003
             new_df = merge_overlaps(node_df)
 
-        new_pattern_graph = generate_graph_from_nodes(new_df)
+        new_pattern_graph = generate_graph_from_nodes(new_df)  # type: ignore
 
         return new_df, new_pattern_graph
 
