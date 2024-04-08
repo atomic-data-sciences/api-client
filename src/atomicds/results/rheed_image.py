@@ -80,7 +80,7 @@ class RHEEDImageResult(MSONable):
 
         if pattern_graph:
             masks = []
-            for _, node_data in pattern_graph.nodes.data():
+            for node_id, node_data in pattern_graph.nodes.data():
                 if show_mask:
                     mask_rle = node_data.get("mask_rle")
                     mask_width = node_data.get("mask_width")
@@ -111,6 +111,12 @@ class RHEEDImageResult(MSONable):
                                 center[1] + radius,
                             ),
                             fill=color,
+                        )
+
+                        draw.text(
+                            xy=(center[0] - (radius / 2), center[1] - radius),
+                            text=str(node_id),
+                            fill=(255, 255, 255, 255),
                         )
 
             if show_mask:
@@ -260,9 +266,9 @@ class RHEEDImageResult(MSONable):
         keep_cols = node_feature_cols + list(extra_data.keys())
 
         if return_as_features:
-            return feature_df[keep_cols]
+            return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
-        return node_df  # , feature_df[keep_cols]  # type: ignore  # noqa: PGH003
+        return node_df  # type: ignore  # noqa: PGH003
 
     @staticmethod
     def _symmetrize(node_df: pd.DataFrame):
@@ -278,7 +284,7 @@ class RHEEDImageResult(MSONable):
             """Reflect a list of RLE masks across the vertical axis"""
 
             mask_array: np.ndarray = mask.decode(
-                {"counts": mask_obj, "size": (height, width)}
+                {"counts": mask_obj, "size": (height, width)}  # type: ignore  # noqa: PGH003
             )
             origin = int(np.round(origin, 0))
             num_cols_to_mirror = mask_array.shape[1] - origin
