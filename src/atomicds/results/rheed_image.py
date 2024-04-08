@@ -70,7 +70,7 @@ class RHEEDImageResult(MSONable):
         image = self.processed_image.copy().convert("RGBA")
         draw = ImageDraw.Draw(image)
 
-        if symmetrize:
+        if symmetrize and self.pattern_graph is not None:
             node_df = pd.DataFrame.from_dict(
                 dict(self.pattern_graph.nodes(data=True)), orient="index"
             )
