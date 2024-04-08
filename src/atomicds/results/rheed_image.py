@@ -202,8 +202,8 @@ class RHEEDImageResult(MSONable):
         Args:
             extra_data (dict | None): Dictionary containing field names and values of extra data to be included in the DataFrame object.
                 Defaults to None.
-            fields_to_retain (list[str] | None): Fields to ensure are kept in the DataFrame object. Defaults to None which
             symmetrize (bool): Whether to symmetrize the data across the vertical axis. Defaults to False.
+            return_as_features (bool): Whether to return a feature-foward version of the DataFrame. Defaults to False.
 
         Returns:
             (DataFrame): Pandas DataFrame object of RHEED node and edge features.
