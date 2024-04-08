@@ -644,9 +644,9 @@ class RHEEDImageCollection(MSONable):
 
             if normalize:
                 for col in node_feature_cols:
-                    data_df[col] = (data_df[col] - data_df[col].mean()) / (
-                        data_df[col].std()
-                    )
+                    data_df[col] = data_df[col] / data_df[col].max()
+
+                data_df = data_df.fillna(0.0)
 
         return data_df  # type: ignore  # noqa: PGH003
 
