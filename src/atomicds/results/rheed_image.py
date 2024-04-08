@@ -481,6 +481,7 @@ class RHEEDImageCollection(MSONable):
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
             extra_data (list[dict] | None): List of dictionaries containing field names and values of extra data to be included in the DataFrame object.
                 Defaults to None.
+            sort_key (str | None): Key used to sort the data with.
         """
 
         extra_data = extra_data or []  # type: ignore  # noqa: PGH003
