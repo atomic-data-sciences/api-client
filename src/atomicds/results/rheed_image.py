@@ -462,7 +462,7 @@ class RHEEDImageResult(MSONable):
             node_df = new_df.copy(deep=True)  # type: ignore  # noqa: PGH003
             new_df = merge_overlaps(node_df)
 
-        new_pattern_graph = generate_graph_from_nodes(new_df)  # type: ignore
+        new_pattern_graph = generate_graph_from_nodes(new_df)  # type: ignore  # noqa: PGH003
 
         return new_df, new_pattern_graph
 
@@ -498,9 +498,9 @@ class RHEEDImageCollection(MSONable):
         self._rheed_images = rheed_images
         self._extra_data = extra_data
         self._sort_key = sort_key
-        if self._sort_key is None:
-            self._sort_key = next(iter(self._extra_data[0].keys()))
-        self._sort_by_extra_data_key(self._sort_key)
+
+        if self._sort_key is not None:
+            self._sort_by_extra_data_key(self._sort_key)
 
     @property
     def rheed_images(self):
