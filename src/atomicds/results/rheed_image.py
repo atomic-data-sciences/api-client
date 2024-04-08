@@ -529,7 +529,6 @@ class RHEEDImageCollection(MSONable):
             rheed_image.processed_image.size for rheed_image in self.rheed_images
         ]
         image_scale = np.amax(image_scales, axis=0)
-        # data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
 
         if node_df is None:
             node_dfs = [
@@ -586,6 +585,9 @@ class RHEEDImageCollection(MSONable):
         Args:
             streamline (bool): Whether to remove streamline the DataFrame object and remove null values. Defaults to True.
             normalize (bool): Whether to min/max normalize the feature data across all images. Defaults to True.
+            symmetrize (bool): Whether to symmetrize the RHEEED images and segmented patterns about the vertical axis before
+                obtaining the DataFrame representation. Defaults to False.
+            return_as_features (bool): Whether to return the final feature-forward DataFrame. Defaults to True.
 
         Returns:
             (DataFrame): Pandas DataFrame object of RHEED node and edge features.
@@ -661,15 +663,10 @@ class RHEEDImageCollection(MSONable):
                     feature_df[col].std()
                 )
 
-            # min max normalization
-            # feature_df[node_feature_cols].apply(
-            #     lambda x: (x - x.min()) / (x.max() - x.min()), inp
-            # )
-
         if return_as_features:
-            return feature_df
+            return feature_df  # type: ignore  # noqa: PGH003
 
-        return node_df  # , feature_df  # type: ignore  # noqa: PGH003
+        return node_df  # type: ignore  # noqa: PGH003
 
     def _sort_by_extra_data_key(self, key: str):
         """Sort the RHEEDImageCollection by an extra data key"""
