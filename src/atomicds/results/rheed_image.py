@@ -624,7 +624,7 @@ class RHEEDImageCollection(MSONable):
             rheed_image.get_pattern_dataframe(
                 extra_data=extra_data,
                 symmetrize=symmetrize,
-                return_as_features=False,
+                return_as_features=return_as_features,
             )
             for rheed_image, extra_data in image_iter
         ]
