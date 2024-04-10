@@ -70,7 +70,7 @@ class RHEEDImageResult(MSONable):
         image = self.processed_image.copy().convert("RGBA")
         draw = ImageDraw.Draw(image)
 
-        if symmetrize:
+        if symmetrize and self.pattern_graph is not None:
             node_df = pd.DataFrame.from_dict(
                 dict(self.pattern_graph.nodes(data=True)), orient="index"
             )
@@ -80,7 +80,7 @@ class RHEEDImageResult(MSONable):
 
         if pattern_graph:
             masks = []
-            for _, node_data in pattern_graph.nodes.data():
+            for node_id, node_data in pattern_graph.nodes.data():
                 if show_mask:
                     mask_rle = node_data.get("mask_rle")
                     mask_width = node_data.get("mask_width")
@@ -111,6 +111,12 @@ class RHEEDImageResult(MSONable):
                                 center[1] + radius,
                             ),
                             fill=color,
+                        )
+
+                        draw.text(
+                            xy=(center[0] - (radius / 2), center[1] - radius),
+                            text=str(node_id),
+                            fill=(255, 255, 255, 255),
                         )
 
             if show_mask:
@@ -196,8 +202,8 @@ class RHEEDImageResult(MSONable):
         Args:
             extra_data (dict | None): Dictionary containing field names and values of extra data to be included in the DataFrame object.
                 Defaults to None.
-            fields_to_retain (list[str] | None): Fields to ensure are kept in the DataFrame object. Defaults to None which
             symmetrize (bool): Whether to symmetrize the data across the vertical axis. Defaults to False.
+            return_as_features (bool): Whether to return a feature-foward version of the DataFrame. Defaults to False.
 
         Returns:
             (DataFrame): Pandas DataFrame object of RHEED node and edge features.
@@ -260,25 +266,21 @@ class RHEEDImageResult(MSONable):
         keep_cols = node_feature_cols + list(extra_data.keys())
 
         if return_as_features:
-            return feature_df[keep_cols]
+            return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
 
-        return node_df  # , feature_df[keep_cols]  # type: ignore  # noqa: PGH003
+        return node_df  # type: ignore  # noqa: PGH003
 
     @staticmethod
     def _symmetrize(node_df: pd.DataFrame):
         """Symmetrize a DataFrame object containing RHEED image node data"""
 
-        # def reflect_mask(mask_obj: str, height, width) -> str:
-        #     """Reflect a list of RLE masks across the vertical axis"""
-        #     mask_obj = mask.decode({"counts": mask_obj, "size": (height, width)})
-        #     reflected_mask = np.asfortranarray(np.fliplr(mask_obj))
-        #     return mask.encode(reflected_mask)['counts']
-
-        def reflect_mask(mask_obj: str, height: int, width: int, origin: float) -> str:
+        def reflect_mask(
+            mask_obj: str, height: int, width: int, origin: float
+        ) -> str | bytes:
             """Reflect a list of RLE masks across the vertical axis"""
 
             mask_array: np.ndarray = mask.decode(
-                {"counts": mask_obj, "size": (height, width)}
+                {"counts": mask_obj, "size": (height, width)}  # type: ignore  # noqa: PGH003
             )
             origin = int(np.round(origin, 0))
             num_cols_to_mirror = mask_array.shape[1] - origin
@@ -299,10 +301,11 @@ class RHEEDImageResult(MSONable):
         def merge_masks(masks: list[str], height, width) -> str:
             """Merge a list of RLE masks using logical OR"""
             mask_objs = [
-                mask.decode({"counts": mm, "size": (height, width)}) for mm in masks
+                mask.decode({"counts": mm, "size": (height, width)})  # type: ignore  # noqa: PGH003
+                for mm in masks
             ]
             merged_mask = np.asfortranarray(np.logical_or.reduce(mask_objs))
-            return mask.encode(merged_mask)
+            return mask.encode(merged_mask)  # type: ignore  # noqa: PGH003
 
         def merge_overlaps(node_df):
             """Merge overlapping nodes in a DataFrame object. Use recursively until no overlaps remain."""
@@ -359,7 +362,7 @@ class RHEEDImageResult(MSONable):
 
                 merged_row = overlapping_nodes.agg(agg_dict)
 
-                new_mask = merge_masks(
+                new_mask = merge_masks(  # type: ignore  # noqa: PGH003
                     merged_row["mask_rle"],
                     merged_row["mask_height"],
                     merged_row["mask_width"],
@@ -369,9 +372,15 @@ class RHEEDImageResult(MSONable):
                 new_df = pd.concat([new_df, merged_row], axis=1)
 
             new_df = new_df.T.astype(original_dtypes).reset_index(drop=True)
-            agg_dict["mask_rle"] = lambda x: merge_masks(
-                x, new_df["mask_height"].iloc[0], new_df["mask_width"].iloc[0]
-            )["counts"]
+
+            agg_dict["mask_rle"] = lambda x: merge_masks(  # type: ignore  # noqa: PGH003
+                x,
+                new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
+                new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
+            )[
+                "counts"
+            ]
+
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
             # relabel node_id > 1000 to monotonically increase from the largest ID < 1000
@@ -388,6 +397,7 @@ class RHEEDImageResult(MSONable):
         left_nodes = node_df.loc[node_df["centroid_1"] < reflection_plane]
         right_nodes = node_df.loc[node_df["centroid_1"] > reflection_plane]
 
+        # TODO: The repeat code here can be condensed.
         left_to_right = left_nodes.copy()
         left_to_right["centroid_1"] = reflection_plane + (
             reflection_plane - left_to_right["centroid_1"]
@@ -409,6 +419,7 @@ class RHEEDImageResult(MSONable):
         new_min = (
             reflection_plane + (reflection_plane - left_to_right["bbox_maxc"])
         ).astype(int)
+
         left_to_right["bbox_maxc"] = new_max
         left_to_right["bbox_minc"] = new_min
 
@@ -451,10 +462,10 @@ class RHEEDImageResult(MSONable):
 
         new_df = merge_overlaps(node_df)
         while len(new_df) != len(node_df):
-            node_df = new_df.copy(deep=True)
+            node_df = new_df.copy(deep=True)  # type: ignore  # noqa: PGH003
             new_df = merge_overlaps(node_df)
 
-        new_pattern_graph = generate_graph_from_nodes(new_df)
+        new_pattern_graph = generate_graph_from_nodes(new_df)  # type: ignore  # noqa: PGH003
 
         return new_df, new_pattern_graph
 
@@ -473,6 +484,7 @@ class RHEEDImageCollection(MSONable):
             rheed_images (list[RHEEDImageResult]): List of RHEEDImageResult objects.
             extra_data (list[dict] | None): List of dictionaries containing field names and values of extra data to be included in the DataFrame object.
                 Defaults to None.
+            sort_key (str | None): Key used to sort the data with.
         """
 
         extra_data = extra_data or []  # type: ignore  # noqa: PGH003
@@ -491,9 +503,9 @@ class RHEEDImageCollection(MSONable):
         self._extra_data = extra_data
 
         self._sort_key = sort_key
-        if self._sort_key is None and len(self._extra_data) > 0:
-            self._sort_key = next(iter(self._extra_data[0].keys()))
-        self._sort_by_extra_data_key(self._sort_key)
+
+        if self._sort_key is not None:
+            self._sort_by_extra_data_key(self._sort_key)
 
     @property
     def rheed_images(self):
@@ -522,7 +534,6 @@ class RHEEDImageCollection(MSONable):
             rheed_image.processed_image.size for rheed_image in self.rheed_images
         ]
         image_scale = np.amax(image_scales, axis=0)
-        # data_ids = [rheed_image.data_id for rheed_image in self.rheed_images]
 
         if node_df is None:
             node_dfs = [
@@ -579,6 +590,9 @@ class RHEEDImageCollection(MSONable):
         Args:
             streamline (bool): Whether to remove streamline the DataFrame object and remove null values. Defaults to True.
             normalize (bool): Whether to min/max normalize the feature data across all images. Defaults to True.
+            symmetrize (bool): Whether to symmetrize the RHEEED images and segmented patterns about the vertical axis before
+                obtaining the DataFrame representation. Defaults to False.
+            return_as_features (bool): Whether to return the final feature-forward DataFrame. Defaults to True.
 
         Returns:
             (DataFrame): Pandas DataFrame object of RHEED node and edge features.
@@ -605,64 +619,40 @@ class RHEEDImageCollection(MSONable):
         # TODO: add edge features
         # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
 
-        if self.extra_data:
-            node_dfs = [
-                rheed_image.get_pattern_dataframe(
-                    extra_data=extra_data,
-                    symmetrize=symmetrize,
-                    return_as_features=False,
-                )
-                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
-            ]
-            feature_dfs = [
-                rheed_image.get_pattern_dataframe(
-                    extra_data=extra_data,
-                    symmetrize=symmetrize,
-                    return_as_features=True,
-                )
-                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
-            ]
-        else:
-            node_dfs = [
-                rheed_image.get_pattern_dataframe(
-                    symmetrize=symmetrize, return_as_features=False
-                )
-                for rheed_image in self.rheed_images
-            ]
-            feature_dfs = [
-                rheed_image.get_pattern_dataframe(
-                    symmetrize=symmetrize, return_as_features=True
-                )
-                for rheed_image in self.rheed_images
-            ]
+        image_iter = (
+            zip(self.rheed_images, self.extra_data)
+            if self.extra_data
+            else zip(self.rheed_images, [None] * len(self.rheed_images))
+        )
 
-        node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
-        feature_df = pd.concat(feature_dfs, axis=0).reset_index(drop=True)
+        dfs = [
+            rheed_image.get_pattern_dataframe(
+                extra_data=extra_data,
+                symmetrize=symmetrize,
+                return_as_features=return_as_features,
+            )
+            for rheed_image, extra_data in image_iter
+        ]
+
+        data_df = pd.concat(dfs, axis=0).reset_index(drop=True)
 
         keep_cols = node_feature_cols + list(
             {key for extra_data in self.extra_data for key in extra_data}
         )
 
-        feature_df = feature_df[keep_cols]
-
-        if streamline:
-            feature_df = feature_df.dropna(axis=1)
-
-        if normalize:
-            for col in node_feature_cols:
-                feature_df[col] = (feature_df[col] - feature_df[col].mean()) / (
-                    feature_df[col].std()
-                )
-
-            # min max normalization
-            # feature_df[node_feature_cols].apply(
-            #     lambda x: (x - x.min()) / (x.max() - x.min()), inp
-            # )
-
         if return_as_features:
-            return feature_df
+            data_df = data_df[keep_cols]
 
-        return node_df  # , feature_df  # type: ignore  # noqa: PGH003
+            if streamline:
+                data_df = data_df.dropna(axis=1)
+
+            if normalize:
+                for col in node_feature_cols:
+                    data_df[col] = (data_df[col] - data_df[col].mean()) / data_df[
+                        col
+                    ].std()
+
+        return data_df  # type: ignore  # noqa: PGH003
 
     def _sort_by_extra_data_key(self, key: str):
         """Sort the RHEEDImageCollection by an extra data key"""
@@ -687,7 +677,9 @@ class RHEEDImageCollection(MSONable):
             )
 
         return self.__class__(
-            self.rheed_images[key], self.extra_data[key], self.sort_key
+            self.rheed_images[key],  # type: ignore  # noqa: PGH003
+            self.extra_data[key],  # type: ignore  # noqa: PGH003
+            self.sort_key,
         )
 
     def __len__(self) -> int:
