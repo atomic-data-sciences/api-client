@@ -489,8 +489,9 @@ class RHEEDImageCollection(MSONable):
 
         self._rheed_images = rheed_images
         self._extra_data = extra_data
+
         self._sort_key = sort_key
-        if self._sort_key is None:
+        if self._sort_key is None and len(self._extra_data) > 0:
             self._sort_key = next(iter(self._extra_data[0].keys()))
         self._sort_by_extra_data_key(self._sort_key)
 
