@@ -674,7 +674,9 @@ class RHEEDImageCollection(MSONable):
             )
 
         return self.__class__(
-            self.rheed_images[key], self.extra_data[key], self.sort_key
+            self.rheed_images[key],  # type: ignore  # noqa: PGH003
+            self.extra_data[key],  # type: ignore  # noqa: PGH003
+            self.sort_key,
         )
 
     def __len__(self) -> int:
