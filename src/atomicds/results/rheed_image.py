@@ -499,6 +499,7 @@ class RHEEDImageCollection(MSONable):
 
         self._rheed_images = rheed_images
         self._extra_data = extra_data
+
         self._sort_key = sort_key
 
         if self._sort_key is not None:
