@@ -377,9 +377,7 @@ class RHEEDImageResult(MSONable):
                 x,
                 new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
                 new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
-            )[
-                "counts"
-            ]
+            )["counts"]
 
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
@@ -487,9 +485,9 @@ class RHEEDImageCollection(MSONable):
             sort_key (str | None): Key used to sort the data with.
         """
 
-        extra_data = extra_data or []  # type: ignore  # noqa: PGH003
+        extra_data = extra_data or ([None] * len(rheed_images))  # type: ignore  # noqa: PGH003
 
-        if len(extra_data) > 0 and len(extra_data) != len(rheed_images):
+        if len(extra_data) > 0 and len(extra_data) != len(rheed_images):  # type: ignore  # noqa: PGH003
             raise ValueError(
                 "List of extra data must be the same length as the RHEED image collection."
             )
@@ -542,7 +540,7 @@ class RHEEDImageCollection(MSONable):
                 )
                 for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
             ]
-
+            print(node_dfs)
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
 
         labels, _ = pd.factorize(node_df["uuid"])
