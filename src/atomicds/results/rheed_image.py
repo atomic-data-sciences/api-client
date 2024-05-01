@@ -485,9 +485,9 @@ class RHEEDImageCollection(MSONable):
             sort_key (str | None): Key used to sort the data with.
         """
 
-        extra_data = extra_data or ([None] * len(rheed_images))  # type: ignore  # noqa: PGH003
+        extra_data = extra_data or []  # type: ignore  # noqa: PGH003
 
-        if len(extra_data) > 0 and len(extra_data) != len(rheed_images):  # type: ignore  # noqa: PGH003
+        if len(extra_data) > 0 and len(extra_data) != len(rheed_images):
             raise ValueError(
                 "List of extra data must be the same length as the RHEED image collection."
             )
@@ -534,11 +534,14 @@ class RHEEDImageCollection(MSONable):
         image_scale = np.amax(image_scales, axis=0)
 
         if node_df is None:
+            extra_iter = (
+                self.extra_data if self.extra_data else [None] * len(self.rheed_images)
+            )
             node_dfs = [
                 rheed_image.get_pattern_dataframe(
                     extra_data=extra_data, symmetrize=False, return_as_features=False
                 )
-                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+                for rheed_image, extra_data in zip(self.rheed_images, extra_iter)
             ]
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
 
