@@ -230,7 +230,10 @@ class RHEEDImageResult(MSONable):
         ]
 
         # TODO: add edge features
-        # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
+        edge_feature_cols = [
+            "weight",
+            "horizontal_weight",
+        ]
 
         node_data = []
         if self.pattern_graph is not None:
@@ -263,7 +266,7 @@ class RHEEDImageResult(MSONable):
         )
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
 
-        keep_cols = node_feature_cols + list(extra_data.keys())
+        keep_cols = node_feature_cols + edge_feature_cols + list(extra_data.keys())
 
         if return_as_features:
             return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
@@ -377,9 +380,7 @@ class RHEEDImageResult(MSONable):
                 x,
                 new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
                 new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
-            )[
-                "counts"
-            ]
+            )["counts"]
 
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
@@ -617,7 +618,10 @@ class RHEEDImageCollection(MSONable):
         ]
 
         # TODO: add edge features
-        # edge_feature_cols = ["weight", "horizontal_weight", "vertical_weight", "horizontal_overlap"]
+        edge_feature_cols = [
+            "weight",
+            "horizontal_weight",
+        ]
 
         image_iter = (
             zip(self.rheed_images, self.extra_data)
@@ -636,8 +640,10 @@ class RHEEDImageCollection(MSONable):
 
         data_df = pd.concat(dfs, axis=0).reset_index(drop=True)
 
-        keep_cols = node_feature_cols + list(
-            {key for extra_data in self.extra_data for key in extra_data}
+        keep_cols = (
+            node_feature_cols
+            + edge_feature_cols
+            + list({key for extra_data in self.extra_data for key in extra_data})
         )
 
         if return_as_features:
