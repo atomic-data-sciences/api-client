@@ -540,7 +540,6 @@ class RHEEDImageCollection(MSONable):
                 )
                 for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
             ]
-            print(node_dfs)
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
 
         labels, _ = pd.factorize(node_df["uuid"])
