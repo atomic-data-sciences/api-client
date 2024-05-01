@@ -278,12 +278,22 @@ class Client(BaseClient):
         # Get pattern graph data
         if metadata is None:
             metadata = {}
-        graph_data = self._get(sub_url=f"spots/{data_id}")
+
+        graph_data: dict = self._get(sub_url=f"spots/{data_id}")  # type: ignore  # noqa: PGH003
+
         graph = (
             nx.node_link_graph(graph_data, source="start_node", target="end_node")
             if graph_data
             else None
         )
+
+        if graph is not None and graph_data is not None:
+            for adjacency in graph_data.get("horizontal_distances", []):
+                graph.add_edge(
+                    adjacency["start_id"],
+                    adjacency["end_id"],
+                    horizontal_distance=adjacency["weight"],
+                )
 
         # Get raw and processed image data
         image_download: dict[str, str] = self._get(  # type: ignore  # noqa: PGH003
