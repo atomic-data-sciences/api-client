@@ -537,13 +537,15 @@ class RHEEDImageCollection(MSONable):
         image_scale = np.amax(image_scales, axis=0)
 
         if node_df is None:
+            extra_iter = (
+                self.extra_data if self.extra_data else [None] * len(self.rheed_images)
+            )
             node_dfs = [
                 rheed_image.get_pattern_dataframe(
                     extra_data=extra_data, symmetrize=False, return_as_features=False
                 )
-                for rheed_image, extra_data in zip(self.rheed_images, self.extra_data)
+                for rheed_image, extra_data in zip(self.rheed_images, extra_iter)
             ]
-
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
 
         labels, _ = pd.factorize(node_df["uuid"])
