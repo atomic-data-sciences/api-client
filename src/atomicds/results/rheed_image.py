@@ -227,6 +227,7 @@ class RHEEDImageResult(MSONable):
             "center_distance",
             "axis_major_length",
             "axis_minor_length",
+            "roughness_metric",
         ]
 
         # TODO: add edge features
@@ -616,6 +617,7 @@ class RHEEDImageCollection(MSONable):
             "center_distance",
             "axis_major_length",
             "axis_minor_length",
+            "roughness_metric",
         ]
 
         # TODO: add edge features
