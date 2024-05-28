@@ -344,7 +344,7 @@ class RHEEDImageResult(MSONable):
                 "bbox_intensity": "mean",
                 "spot_area": "mean",
                 "streak_area": "mean",
-                "roughness_metric": "mean"
+                "roughness_metric": "mean",
             }
 
             new_df = pd.DataFrame()
