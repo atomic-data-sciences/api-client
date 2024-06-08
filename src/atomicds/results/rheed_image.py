@@ -504,7 +504,7 @@ class RHEEDImageCollection(MSONable):
 
         self._extra_data = extra_data or []  # type: ignore  # noqa: PGH003
 
-        if len(extra_data) > 0 and len(extra_data) != len(rheed_images):
+        if len(self._extra_data) > 0 and len(self._extra_data) != len(rheed_images):
             raise ValueError(
                 "List of extra data must be the same length as the RHEED image collection."
             )
@@ -522,7 +522,7 @@ class RHEEDImageCollection(MSONable):
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
         self._rheed_images = [rheed_images[idx] for idx in sorted_indices]
-        self._extra_data = [extra_data[idx] for idx in sorted_indices]
+        self._extra_data = [self._extra_data[idx] for idx in sorted_indices]
 
     @property
     def rheed_images(self):
