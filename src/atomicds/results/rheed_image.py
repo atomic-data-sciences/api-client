@@ -74,6 +74,7 @@ class RHEEDImageResult(MSONable):
             node_df = pd.DataFrame.from_dict(
                 dict(self.pattern_graph.nodes(data=True)), orient="index"
             )
+            node_df = node_df.drop(columns=["roughness_metric"])
             _, pattern_graph = self._symmetrize(node_df)
         else:
             pattern_graph = self.pattern_graph
@@ -101,7 +102,7 @@ class RHEEDImageResult(MSONable):
                     if x and y:
                         center = (x, y)
                         radius = 0.02 * max(image.width, image.height)
-                        color = (255, 0, 0, 255)
+                        color = (255, 0, 0, 255) if node_id > 0 else (0, 255, 0, 255)
 
                         draw.ellipse(
                             (
@@ -227,7 +228,7 @@ class RHEEDImageResult(MSONable):
             "center_distance",
             "axis_major_length",
             "axis_minor_length",
-            "roughness_metric",
+            # "roughness_metric",
         ]
 
         # TODO: add edge features
@@ -242,9 +243,14 @@ class RHEEDImageResult(MSONable):
             )
 
         node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
+        node_df = node_df.drop(columns=["roughness_metric"])
+
+        # print(node_df.columns)
 
         if symmetrize:
             node_df, _ = self._symmetrize(node_df)
+
+        # print(node_df.columns)
 
         extra_data_df = pd.DataFrame.from_records(
             [{"data_id": self.processed_data_id} | extra_data]
@@ -254,7 +260,11 @@ class RHEEDImageResult(MSONable):
             index="uuid", columns="node_id", values=node_feature_cols
         )
 
+        # print(feature_df.columns)
+
         feature_df.columns = feature_df.columns.to_flat_index()
+
+        # print(feature_df.columns)
 
         feature_df = feature_df.merge(
             extra_data_df, left_index=True, right_on="data_id", how="inner"
@@ -265,6 +275,9 @@ class RHEEDImageResult(MSONable):
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
 
         keep_cols = node_feature_cols + list(extra_data.keys())
+
+        # print(keep_cols)
+        # print(feature_df.head())
 
         if return_as_features:
             return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
@@ -344,6 +357,7 @@ class RHEEDImageResult(MSONable):
                 "bbox_intensity": "mean",
                 "spot_area": "mean",
                 "streak_area": "mean",
+                "roughness_metric": "mean",
             }
 
             new_df = pd.DataFrame()
@@ -488,25 +502,27 @@ class RHEEDImageCollection(MSONable):
             sort_key (str | None): Key used to sort the data with.
         """
 
-        extra_data = extra_data or []  # type: ignore  # noqa: PGH003
+        self._extra_data = extra_data or []  # type: ignore  # noqa: PGH003
 
-        if len(extra_data) > 0 and len(extra_data) != len(rheed_images):
+        if len(self._extra_data) > 0 and len(self._extra_data) != len(rheed_images):
             raise ValueError(
                 "List of extra data must be the same length as the RHEED image collection."
             )
+
+        self._sort_key = sort_key
+
+        if self._sort_key is not None:
+            sorted_indices = self._sort_by_extra_data_key(self._sort_key)
+        else:
+            sorted_indices = list(range(len(rheed_images)))
 
         for idx, rheed_image in enumerate(rheed_images):
             if rheed_image.pattern_graph:
                 for node in rheed_image.pattern_graph.nodes:
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
-        self._rheed_images = rheed_images
-        self._extra_data = extra_data
-
-        self._sort_key = sort_key
-
-        if self._sort_key is not None:
-            self._sort_by_extra_data_key(self._sort_key)
+        self._rheed_images = [rheed_images[idx] for idx in sorted_indices]
+        self._extra_data = [self._extra_data[idx] for idx in sorted_indices]
 
     @property
     def rheed_images(self):
@@ -521,7 +537,10 @@ class RHEEDImageCollection(MSONable):
         return self._sort_key
 
     def align_fingerprints(
-        self, node_df: pd.DataFrame | None = None, inplace: bool = False
+        self,
+        node_df: pd.DataFrame | None = None,
+        inplace: bool = False,
+        search_range=0.2,
     ) -> RHEEDImageCollection:
         """
         Align a collection of RHEED fingerprints by relabeling the nodes to connect the same scattering
@@ -547,13 +566,14 @@ class RHEEDImageCollection(MSONable):
                 for rheed_image, extra_data in zip(self.rheed_images, extra_iter)
             ]
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
+            # node_df = node_df.drop(columns=["roughness_metric"])
 
         labels, _ = pd.factorize(node_df["uuid"])
         node_df["pattern_id"] = labels
 
         linked_df = tp.link(
             f=node_df,
-            search_range=np.sqrt(np.sum(np.square(image_scale))) * 0.1,
+            search_range=np.sqrt(np.sum(np.square(image_scale))) * search_range,
             memory=1,
             t_column="pattern_id",
             pos_columns=["relative_centroid_1", "relative_centroid_0"],
@@ -591,7 +611,7 @@ class RHEEDImageCollection(MSONable):
         """Featurize the RHEED image collection into a dataframe of node features and edge features.
 
         Args:
-            streamline (bool): Whether to remove streamline the DataFrame object and remove null values. Defaults to True.
+            streamline (bool): Whether to streamline the DataFrame object and remove null values. Defaults to True.
             normalize (bool): Whether to min/max normalize the feature data across all images. Defaults to True.
             symmetrize (bool): Whether to symmetrize the RHEEED images and segmented patterns about the vertical axis before
                 obtaining the DataFrame representation. Defaults to False.
@@ -617,7 +637,7 @@ class RHEEDImageCollection(MSONable):
             "center_distance",
             "axis_major_length",
             "axis_minor_length",
-            "roughness_metric",
+            # "roughness_metric",
         ]
 
         # TODO: add edge features
@@ -652,9 +672,9 @@ class RHEEDImageCollection(MSONable):
 
             if normalize:
                 for col in node_feature_cols:
-                    data_df[col] = (data_df[col] - data_df[col].mean()) / data_df[
-                        col
-                    ].std()
+                    data_df[col] = (data_df[col] - data_df[col].mean()) / (
+                        data_df[col].std() + 1e-6
+                    )
 
         return data_df  # type: ignore  # noqa: PGH003
 
@@ -666,10 +686,10 @@ class RHEEDImageCollection(MSONable):
             )
 
         sort_order = [extra_data[key] for extra_data in self.extra_data]
-        sorted_indices = np.argsort(sort_order)
+        return np.argsort(sort_order)
 
-        self._rheed_images = [self.rheed_images[idx] for idx in sorted_indices]
-        self._extra_data = [self.extra_data[idx] for idx in sorted_indices]
+        # self._rheed_images = [self.rheed_images[idx] for idx in sorted_indices]
+        # self._extra_data = [self.extra_data[idx] for idx in sorted_indices]
 
     def __getitem__(self, key: int | slice) -> RHEEDImageResult | RHEEDImageCollection:
         if isinstance(key, int):
