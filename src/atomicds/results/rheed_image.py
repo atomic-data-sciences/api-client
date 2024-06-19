@@ -74,6 +74,7 @@ class RHEEDImageResult(MSONable):
             node_df = pd.DataFrame.from_dict(
                 dict(self.pattern_graph.nodes(data=True)), orient="index"
             )
+            # node_df = node_df.drop(columns=["roughness_metric"])
             _, pattern_graph = self._symmetrize(node_df)
         else:
             pattern_graph = self.pattern_graph
@@ -242,6 +243,9 @@ class RHEEDImageResult(MSONable):
             )
 
         node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
+        # node_df = node_df.drop(columns=["roughness_metric"])
+
+        # print(node_df.columns)
 
         if symmetrize:
             node_df, _ = self._symmetrize(node_df)
