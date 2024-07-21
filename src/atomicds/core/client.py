@@ -6,7 +6,7 @@ import platform
 import sys
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from importlib.metadata import version
-from typing import Any, Callable
+from typing import Any, Callable  # type: ignore[ruleName]
 from urllib.parse import urljoin
 
 from requests import Session
@@ -39,7 +39,7 @@ class BaseClient:
         """Session under which HTTP requests are issued"""
         if not self._session:
             self._session = self._create_session(self.api_key)
-        return self._session  # type: ignore  # noqa: PGH003
+        return self._session
 
     def _get(
         self,
@@ -47,7 +47,7 @@ class BaseClient:
         params: dict[str, Any] | None = None,
         deserialize: bool = True,
         base_override: str | None = None,
-    ) -> list[dict] | dict | bytes | None:
+    ) -> list[dict[Any, Any]] | dict[Any, Any] | bytes | None:
         """Method for issuing a GET request
 
         Args:
@@ -81,10 +81,10 @@ class BaseClient:
 
     def _multi_thread(
         self,
-        func: Callable,
-        kwargs_list: list[dict],
-        progress_bar: tqdm | None = None,
-    ):
+        func: Callable[..., Any],
+        kwargs_list: list[dict[str, Any]],
+        progress_bar: tqdm | None = None,  # type: ignore[ruleName]
+    ) -> list[Any]:
         """Handles running a function concurrently with a ThreadPoolExecutor
 
         Arguments:
@@ -141,7 +141,7 @@ class BaseClient:
         return [t[1] for t in sorted(return_dict.items())]
 
     @staticmethod
-    def _create_session(api_key):
+    def _create_session(api_key: str):
         """Create a requests session
 
         Args:

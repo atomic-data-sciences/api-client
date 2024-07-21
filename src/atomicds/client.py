@@ -108,6 +108,7 @@ class Client(BaseClient):
         catalogue = DataFrame(data)
         if len(catalogue):
             catalogue = catalogue.drop(columns=["user_id"])
+
         return catalogue.rename(columns=column_mapping)
 
     def get(
