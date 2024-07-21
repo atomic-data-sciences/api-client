@@ -72,7 +72,7 @@ class BaseClient:
                 return None
 
             raise ClientError(
-                f"Problem retrieving data from {sub_url} with parameters {params}. HTTP Error {response.status_code}: {response.json().get('detail', 'Unknown error')}"
+                f"Problem retrieving data from {sub_url} with parameters {params}. HTTP Error {response.status_code}: {response.text}"
             )
         if len(response.content) == 0:
             return None
