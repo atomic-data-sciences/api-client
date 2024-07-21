@@ -49,6 +49,7 @@ dev = [
   "ruff",
   "mypy",
   "types-requests",
+  "pandas-stubs"
 ]
 docs = []
 
