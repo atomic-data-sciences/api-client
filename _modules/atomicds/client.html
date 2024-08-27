@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>atomicds.client &#8212; atomicds 2024 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=c058f7c8" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=6fefd858"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for atomicds.client</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">BytesIO</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Literal</span>
+
+<span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">from</span> <span class="nn">tqdm.auto</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span> <span class="nn">atomicds.core</span> <span class="kn">import</span> <span class="n">BaseClient</span>
+<span class="kn">from</span> <span class="nn">atomicds.results</span> <span class="kn">import</span> <span class="n">RHEEDImageResult</span><span class="p">,</span> <span class="n">RHEEDVideoResult</span><span class="p">,</span> <span class="n">XPSResult</span>
+
+
+<div class="viewcode-block" id="Client">
+<a class="viewcode-back" href="../../_autosummary/atomicds.client.Client.html#atomicds.client.Client">[docs]</a>
+<span class="k">class</span> <span class="nc">Client</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Atomic Data Sciences API client&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Client.__init__">
+<a class="viewcode-back" href="../../_autosummary/atomicds.client.Client.html#atomicds.client.Client.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">api_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">endpoint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;https://api.atomicdatasciences.com/&quot;</span><span class="p">,</span>
+        <span class="n">mute_bars</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            api_key (str | None): API key. Defaults to None which will try and pull from the ADS_API_KEY environment variable.</span>
+<span class="sd">            endpoint (str): Root API endpoint. Will prioritize pulling from the ADS_API_ENDPOINT environment variable.</span>
+<span class="sd">                If none provided it defaults to &#39;https://api.atomicdatasciences.com/&#39;.</span>
+<span class="sd">            mute_bars (bool): Whether to mute progress bars. Defaults to False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">api_key</span> <span class="o">=</span> <span class="n">api_key</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ADS_API_KEY&quot;</span><span class="p">)</span>
+        <span class="n">endpoint</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ADS_API_ENDPOINT&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">endpoint</span>
+
+        <span class="k">if</span> <span class="n">api_key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No valid ADS API key supplied&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mute_bars</span> <span class="o">=</span> <span class="n">mute_bars</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="n">endpoint</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Client.search">
+<a class="viewcode-back" href="../../_autosummary/atomicds.client.Client.html#atomicds.client.Client.search">[docs]</a>
+    <span class="k">def</span> <span class="nf">search</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">keywords</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">include_organization_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">data_ids</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">data_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+            <span class="s2">&quot;rheed_image&quot;</span><span class="p">,</span> <span class="s2">&quot;rheed_stationary&quot;</span><span class="p">,</span> <span class="s2">&quot;rheed_rotating&quot;</span><span class="p">,</span> <span class="s2">&quot;xps&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
+        <span class="n">status</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;success&quot;</span><span class="p">,</span> <span class="s2">&quot;pending&quot;</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;success&quot;</span><span class="p">,</span>
+        <span class="n">growth_length</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">upload_datetime</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">last_accessed_datetime</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search and obtain data catalogue entries</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            keywords (str | list[str] | None): Keyword or list of keywords to search all data catalogue fields with.</span>
+<span class="sd">                This searching is applied after all other explicit filters. Defaults to None.</span>
+<span class="sd">            include_organization_data (bool): Whether to include catalogue entries from other users in</span>
+<span class="sd">                your organization. Defaults to True.</span>
+<span class="sd">            data_ids (str | list[str] | None): Data ID or list of data IDs. Defaults to None.</span>
+<span class="sd">            data_type (Literal[&quot;rheed_image&quot;, &quot;rheed_stationary&quot;, &quot;rheed_rotating&quot;, &quot;xps&quot;, &quot;all&quot;]): Type of data. Defaults to &quot;all&quot;.</span>
+<span class="sd">            status (Literal[&quot;success&quot;, &quot;pending&quot;, &quot;error&quot;, &quot;running&quot;, &quot;all&quot;]): Analyzed status of the data. Defaults to &quot;all&quot;.</span>
+<span class="sd">            growth_length (tuple[int | None, int | None]): Minimum and maximum values of the growth length in seconds.</span>
+<span class="sd">                Defaults to (None, None) which will include all non-video data.</span>
+<span class="sd">            upload_datetime (tuple[datetime | None, datetime | None]): Minimum and maximum values of the upload datetime.</span>
+<span class="sd">                Defaults to (None, None).</span>
+<span class="sd">            last_accessed_datetime (tuple[datetime | None, datetime | None]): Minimum and maximum values of the last accessed datetime.</span>
+<span class="sd">                Defaults to (None, None).</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            (DataFrame): Pandas DataFrame containing matched entries in the data catalogue.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;keywords&quot;</span><span class="p">:</span> <span class="n">keywords</span><span class="p">,</span>
+            <span class="s2">&quot;include_organization_data&quot;</span><span class="p">:</span> <span class="n">include_organization_data</span><span class="p">,</span>
+            <span class="s2">&quot;data_ids&quot;</span><span class="p">:</span> <span class="n">data_ids</span><span class="p">,</span>
+            <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;all&quot;</span> <span class="k">else</span> <span class="n">data_type</span><span class="p">,</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+            <span class="s2">&quot;growth_length_min&quot;</span><span class="p">:</span> <span class="n">growth_length</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">&quot;growth_length_max&quot;</span><span class="p">:</span> <span class="n">growth_length</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;upload_datetime_min&quot;</span><span class="p">:</span> <span class="n">upload_datetime</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">&quot;upload_datetime_max&quot;</span><span class="p">:</span> <span class="n">upload_datetime</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;last_accessed_datetime_min&quot;</span><span class="p">:</span> <span class="n">last_accessed_datetime</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">&quot;last_accessed_datetime_max&quot;</span><span class="p">:</span> <span class="n">last_accessed_datetime</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="p">}</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>
+            <span class="n">sub_url</span><span class="o">=</span><span class="s2">&quot;data_entries/&quot;</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">column_mapping</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;uuid&quot;</span><span class="p">:</span> <span class="s2">&quot;Data ID&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;upload_datetime&quot;</span><span class="p">:</span> <span class="s2">&quot;Upload Datetime&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;last_accessed_datetime&quot;</span><span class="p">:</span> <span class="s2">&quot;Last Accessed Datetime&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;char_source_type&quot;</span><span class="p">:</span> <span class="s2">&quot;Type&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;raw_name&quot;</span><span class="p">:</span> <span class="s2">&quot;File Name&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;pipeline_status&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;raw_file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;File Type&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;source_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Instrument Source&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;sample_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Sample Name&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;growth_length&quot;</span><span class="p">:</span> <span class="s2">&quot;Growth Length&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_id&quot;</span><span class="p">:</span> <span class="s2">&quot;Physical Sample ID&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Physical Sample Name&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_notes&quot;</span><span class="p">:</span> <span class="s2">&quot;Sample Notes&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;tags&quot;</span><span class="p">:</span> <span class="s2">&quot;Tags&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Owner&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">columns_to_drop</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;user_id&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;synth_source_id&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;sample_id&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_last_updated&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_created&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_owner_id&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_growth_instrument&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;physical_sample_target_material&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;processed_metadata&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;processed_file_type&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="n">catalogue</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">catalogue</span><span class="p">):</span>
+            <span class="n">catalogue</span> <span class="o">=</span> <span class="n">catalogue</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">columns_to_drop</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">catalogue</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_mapping</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Client.get">
+<a class="viewcode-back" href="../../_autosummary/atomicds.client.Client.html#atomicds.client.Client.get">[docs]</a>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">data_ids</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">RHEEDVideoResult</span> <span class="o">|</span> <span class="n">RHEEDImageResult</span> <span class="o">|</span> <span class="n">XPSResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get analyzed data results</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data_ids (str | list[str]): Data ID or list of data IDs from the data catalogue to obtain analyzed results for.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (list[RHEEDVideoResult | RHEEDVideoResult | XPSResult]): List of result objects</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data_ids</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">data_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">data_ids</span><span class="p">]</span>
+
+        <span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+            <span class="n">sub_url</span><span class="o">=</span><span class="s2">&quot;data_entries/&quot;</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;data_ids&quot;</span><span class="p">:</span> <span class="n">data_ids</span><span class="p">,</span>
+                <span class="s2">&quot;include_organization_data&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+        <span class="n">kwargs_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data_id</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;uuid&quot;</span><span class="p">]</span>
+            <span class="n">data_type</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;char_source_type&quot;</span><span class="p">]</span>
+            <span class="n">kwargs_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;data_id&quot;</span><span class="p">:</span> <span class="n">data_id</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="n">data_type</span><span class="p">})</span>
+
+        <span class="c1"># sort by submission order; this is important to match external labels</span>
+        <span class="n">kwargs_list</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs_list</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">data_ids</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;data_id&quot;</span><span class="p">]))</span>
+
+        <span class="n">pbar</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">tqdm</span><span class="p">(</span>
+                <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Obtaining data results&quot;</span><span class="p">,</span>
+                <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mute_bars</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multi_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_result_data</span><span class="p">,</span> <span class="n">kwargs_list</span><span class="p">,</span> <span class="n">pbar</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_get_result_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">data_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">data_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;xps&quot;</span><span class="p">,</span> <span class="s2">&quot;rheed_image&quot;</span><span class="p">,</span> <span class="s2">&quot;rheed_stationary&quot;</span><span class="p">,</span> <span class="s2">&quot;rheed_rotating&quot;</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RHEEDVideoResult</span> <span class="o">|</span> <span class="n">RHEEDImageResult</span> <span class="o">|</span> <span class="n">XPSResult</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;xps&quot;</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;xps/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+
+            <span class="k">return</span> <span class="n">XPSResult</span><span class="p">(</span>
+                <span class="n">data_id</span><span class="o">=</span><span class="n">data_id</span><span class="p">,</span>
+                <span class="n">xps_id</span><span class="o">=</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;xps_id&quot;</span><span class="p">],</span>
+                <span class="n">binding_energies</span><span class="o">=</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;binding_energies&quot;</span><span class="p">],</span>
+                <span class="n">intensities</span><span class="o">=</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;intensities&quot;</span><span class="p">],</span>
+                <span class="n">predicted_composition</span><span class="o">=</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;predicted_composition&quot;</span><span class="p">],</span>
+                <span class="n">detected_peaks</span><span class="o">=</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;detected_peaks&quot;</span><span class="p">],</span>
+                <span class="n">elements_manually_set</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;set_elements&quot;</span><span class="p">]),</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;rheed_image&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_rheed_image_result</span><span class="p">(</span><span class="n">data_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">data_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;rheed_stationary&quot;</span><span class="p">,</span> <span class="s2">&quot;rheed_rotating&quot;</span><span class="p">]:</span>
+            <span class="c1"># Get timeseries data</span>
+            <span class="n">timeseries_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_rheed_timeseries_result</span><span class="p">(</span><span class="n">data_id</span><span class="p">)</span>
+
+            <span class="c1"># Get cluster and extracted image data</span>
+            <span class="n">cluster_frames</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+                <span class="n">sub_url</span><span class="o">=</span><span class="s2">&quot;data_entries/video_cluster_frames/&quot;</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;data_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">data_id</span><span class="p">]},</span>
+            <span class="p">)</span>
+
+            <span class="n">extracted_frames</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+                <span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;data_entries/video_single_frames/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">__obtain_frame_data</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">metadata_fields</span><span class="p">):</span>
+                <span class="n">image_params</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">frames</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;frames&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+                    <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="n">key</span><span class="p">:</span> <span class="n">value</span>
+                        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">frame</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">metadata_fields</span>
+                    <span class="p">}</span>
+
+                    <span class="n">image_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="p">{</span><span class="s2">&quot;data_id&quot;</span><span class="p">:</span> <span class="n">frame</span><span class="p">[</span><span class="s2">&quot;image_uuid&quot;</span><span class="p">],</span> <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">metadata</span><span class="p">}</span>
+                    <span class="p">)</span>
+
+                <span class="k">return</span> <span class="p">[</span>
+                    <span class="n">result</span>
+                    <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multi_thread</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_get_rheed_image_result</span><span class="p">,</span> <span class="n">kwargs_list</span><span class="o">=</span><span class="n">image_params</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="n">result</span>
+                <span class="p">]</span>
+
+            <span class="n">cluster_image_results</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">__obtain_frame_data</span><span class="p">(</span>
+                    <span class="n">cluster_frames</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="p">[</span><span class="s2">&quot;cluster_id&quot;</span><span class="p">,</span> <span class="s2">&quot;start_timestamp_seconds&quot;</span><span class="p">,</span> <span class="s2">&quot;end_timestamp_seconds&quot;</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">cluster_frames</span>
+                <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">)</span>
+
+            <span class="n">extracted_image_results</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">__obtain_frame_data</span><span class="p">(</span>
+                    <span class="n">extracted_frames</span><span class="p">,</span>
+                    <span class="p">[</span><span class="s2">&quot;timestamp_seconds&quot;</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">extracted_frames</span>
+                <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">RHEEDVideoResult</span><span class="p">(</span>
+                <span class="n">data_id</span><span class="o">=</span><span class="n">data_id</span><span class="p">,</span>
+                <span class="n">timeseries_data</span><span class="o">=</span><span class="n">timeseries_data</span><span class="p">,</span>
+                <span class="n">cluster_image_data</span><span class="o">=</span><span class="n">cluster_image_results</span><span class="p">,</span>
+                <span class="n">snapshot_image_data</span><span class="o">=</span><span class="n">extracted_image_results</span><span class="p">,</span>
+                <span class="n">rotating</span><span class="o">=</span><span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;rheed_rotating&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data type must be rheed_video, rheed_image, or xps&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_rheed_timeseries_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># Get rheed video timeseries results</span>
+        <span class="n">plot_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;clusters/plot_data/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">(</span><span class="n">plot_data</span><span class="p">)</span>
+        <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;cluster_std&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;cluster_mean_plus_std&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;cluster_id&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;first_order_intensity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;region_1_intensity&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;region_2_intensity&quot;</span><span class="p">]</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>
+
+        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
+            <span class="n">columns</span><span class="o">=</span><span class="p">[</span>
+                <span class="s2">&quot;cluster_mean&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;cluster_cdf&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;region_1_intensity&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;region_2_intensity&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;cluster_mean_plus_std&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;cluster_mean_minus_std&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">column_mapping</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;real_time_seconds&quot;</span><span class="p">:</span> <span class="s2">&quot;Time&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;cluster_id&quot;</span><span class="p">:</span> <span class="s2">&quot;Cluster ID&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;cluster_std&quot;</span><span class="p">:</span> <span class="s2">&quot;Cluster ID Uncertainty&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;relative_strain&quot;</span><span class="p">:</span> <span class="s2">&quot;Relative Strain&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;cumulative_strain&quot;</span><span class="p">:</span> <span class="s2">&quot;Cumulative Strain&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;oscillation_period_seconds&quot;</span><span class="p">:</span> <span class="s2">&quot;Oscillation Period&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;spot_count&quot;</span><span class="p">:</span> <span class="s2">&quot;Diffraction Spot Count&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;first_order_intensity&quot;</span><span class="p">:</span> <span class="s2">&quot;First Order Intensity&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;region_0_intensity&quot;</span><span class="p">:</span> <span class="s2">&quot;Specular Intensity&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_mapping</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_rheed_image_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Get pattern graph data</span>
+        <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">graph_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;spots/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">nx</span><span class="o">.</span><span class="n">node_link_graph</span><span class="p">(</span><span class="n">graph_data</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;start_node&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;end_node&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">graph_data</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Get raw and processed image data</span>
+        <span class="n">image_download</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+            <span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;data_entries/processed_data/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;return_as&quot;</span><span class="p">:</span> <span class="s2">&quot;url-download&quot;</span><span class="p">},</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">image_download</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Image is pulled from the S3 pre-signed URL</span>
+        <span class="n">image_bytes</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+            <span class="n">base_override</span><span class="o">=</span><span class="n">image_download</span><span class="p">[</span><span class="s2">&quot;url&quot;</span><span class="p">],</span> <span class="n">sub_url</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">deserialize</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+
+        <span class="n">image_data</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">image_bytes</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">RHEEDImageResult</span><span class="p">(</span>
+            <span class="n">data_id</span><span class="o">=</span><span class="n">data_id</span><span class="p">,</span>
+            <span class="n">processed_image</span><span class="o">=</span><span class="n">image_data</span><span class="p">,</span>
+            <span class="n">pattern_graph</span><span class="o">=</span><span class="n">graph</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">atomicds</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=artificial-atomic-intelligence&repo=api-client&type=star&v=2&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Project Modules</a></li>
+</ul>
+
+
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Atomic Data Sciences.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.0.2</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/artificial-atomic-intelligence/api-client" class="github">
+        <img src="../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>
