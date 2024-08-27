@@ -1,0 +1,38 @@
+atomicds.results.rheed\_video.RHEEDVideoResult
+==============================================
+
+.. currentmodule:: atomicds.results.rheed_video
+
+.. autoclass:: RHEEDVideoResult
+   :members:
+   :show-inheritance:
+   :inherited-members:
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RHEEDVideoResult.__init__
+      ~RHEEDVideoResult.as_dict
+      ~RHEEDVideoResult.from_dict
+      ~RHEEDVideoResult.get_plot
+      ~RHEEDVideoResult.to_json
+      ~RHEEDVideoResult.unsafe_hash
+      ~RHEEDVideoResult.validate_monty_v1
+      ~RHEEDVideoResult.validate_monty_v2
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RHEEDVideoResult.REDIRECT
+   
+   
