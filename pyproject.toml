@@ -39,6 +39,10 @@ dependencies = [
   "trackpy",
 ]
 
+[project.urls]
+Homepage = "https://www.atomicdatasciences.com"
+Documentation = "https://github.com/artificial-atomic-intelligence/api-client"
+
 [tool.setuptools_scm]
 
 [project.optional-dependencies]
@@ -49,7 +53,7 @@ dev = [
   "ruff",
   "mypy",
   "types-requests",
-  "pandas-stubs"
+  "pandas-stubs",
 ]
 docs = []
 
