@@ -57,6 +57,7 @@ class RHEEDImageResult(MSONable):
         show_spot_nodes: bool = True,
         symmetrize: bool = False,
         alpha: float = 0.2,
+        color: tuple = (255, 0, 0, 255),
     ) -> Image:
         """Get diffraction pattern image with optional overlays
 
@@ -103,7 +104,11 @@ class RHEEDImageResult(MSONable):
                     if x and y:
                         center = (x, y)
                         radius = 0.02 * max(image.width, image.height)
-                        color = (255, 0, 0, 255) if node_id > 0 else (0, 255, 0, 255)
+                        color = (
+                            list(255, 0, 0, 255)
+                            if node_id > 0
+                            else list(0, 255, 0, 255)
+                        )
 
                         draw.ellipse(
                             (
@@ -124,8 +129,9 @@ class RHEEDImageResult(MSONable):
             if show_mask:
                 total_mask = np.stack(masks, axis=0).sum(axis=0).squeeze()
                 overlay = np.zeros((*total_mask.shape, 4), dtype=np.uint8)
-                overlay[np.where(total_mask)] = [255, 0, 0, int(alpha * (255))]
-
+                color = list(color)
+                color[-1] = int(alpha * 255)
+                overlay[np.where(total_mask)] = color
                 overlay = PILImage.fromarray(overlay)
                 image.paste(overlay, mask=overlay)
 
