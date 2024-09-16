@@ -5,4 +5,4 @@
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg?logo=python&logoColor=white)
 [![License](https://img.shields.io/badge/License-GPLv3-blue)](#license)
 
-[![view - Documentation](https://img.shields.io/badge/view-Documentation-blue?style=for-the-badge)](https://artificial-atomic-intelligence.github.io/api-client/)
+[![view - Documentation](https://img.shields.io/badge/view-Documentation-blue?style=for-the-badge)](https://atomic-data-sciences.github.io/api-client/)
