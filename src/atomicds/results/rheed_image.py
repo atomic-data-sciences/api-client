@@ -43,7 +43,7 @@ class RHEEDImageResult(MSONable):
         if pattern_graph is not None:
             min_node_index: int = min(pattern_graph.nodes(), key=lambda x: int(x))
             processed_data_id: str = pattern_graph.nodes(data=True)[min_node_index][  # type: ignore  # noqa: PGH003
-                "uuid"
+                "data_id"
             ]
 
         self.data_id = data_id
@@ -245,28 +245,19 @@ class RHEEDImageResult(MSONable):
             )
 
         node_df = pd.concat(node_data, axis=0).reset_index(drop=True)
-        # node_df = node_df.drop(columns=["roughness_metric"])
-
-        # print(node_df.columns)
 
         if symmetrize:
             node_df, _ = self._symmetrize(node_df)
-
-        # print(node_df.columns)
 
         extra_data_df = pd.DataFrame.from_records(
             [{"data_id": self.processed_data_id} | extra_data]
         )
 
         feature_df: pd.DataFrame = node_df.pivot_table(
-            index="uuid", columns="node_id", values=node_feature_cols
+            index="data_id", columns="node_id", values=node_feature_cols
         )
 
-        # print(feature_df.columns)
-
         feature_df.columns = feature_df.columns.to_flat_index()
-
-        # print(feature_df.columns)
 
         feature_df = feature_df.merge(
             extra_data_df, left_index=True, right_on="data_id", how="inner"
@@ -277,9 +268,6 @@ class RHEEDImageResult(MSONable):
         feature_df.columns = pd.MultiIndex.from_tuples(feature_df.columns)
 
         keep_cols = node_feature_cols + list(extra_data.keys())
-
-        # print(keep_cols)
-        # print(feature_df.head())
 
         if return_as_features:
             return feature_df[keep_cols]  # type: ignore  # noqa: PGH003
@@ -351,7 +339,7 @@ class RHEEDImageResult(MSONable):
                 "mask_rle": lambda x: x.tolist(),
                 "mask_width": lambda x: x.iloc[0],
                 "mask_height": lambda x: x.iloc[0],
-                "uuid": lambda x: x.iloc[0],
+                "data_id": lambda x: x.iloc[0],
                 "oscillation_period_seconds": "mean",
                 "eccentricity": "mean",
                 "axis_major_length": "mean",
@@ -394,9 +382,7 @@ class RHEEDImageResult(MSONable):
                 x,
                 new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
                 new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
-            )[
-                "counts"
-            ]
+            )["counts"]
 
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
@@ -570,7 +556,7 @@ class RHEEDImageCollection(MSONable):
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
             # node_df = node_df.drop(columns=["roughness_metric"])
 
-        labels, _ = pd.factorize(node_df["uuid"])
+        labels, _ = pd.factorize(node_df["data_id"])
         node_df["pattern_id"] = labels
 
         linked_df = tp.link(

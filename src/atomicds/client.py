@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Literal
 
 import networkx as nx
-from pandas import DataFrame
+from pandas import DataFrame, merge
 from PIL import Image
 from tqdm.auto import tqdm
 
@@ -92,7 +92,7 @@ class Client(BaseClient):
             params=params,
         )
         column_mapping = {
-            "uuid": "Data ID",
+            "data_id": "Data ID",
             "upload_datetime": "Upload Datetime",
             "last_accessed_datetime": "Last Accessed Datetime",
             "char_source_type": "Type",
@@ -152,7 +152,7 @@ class Client(BaseClient):
 
         kwargs_list = []
         for entry in data:
-            data_id = entry["uuid"]
+            data_id = entry["data_id"]
             data_type = entry["char_source_type"]
             kwargs_list.append({"data_id": data_id, "data_type": data_type})
 
@@ -196,10 +196,6 @@ class Client(BaseClient):
             timeseries_data = self._get_rheed_timeseries_result(data_id)
 
             # Get cluster and extracted image data
-            cluster_frames: list[dict] = self._get(  # type: ignore  # noqa: PGH003
-                sub_url="data_entries/video_cluster_frames/",
-                params={"data_ids": [data_id]},
-            )
 
             extracted_frames: list[dict] = self._get(  # type: ignore  # noqa: PGH003
                 sub_url=f"data_entries/video_single_frames/{data_id}",
@@ -227,15 +223,6 @@ class Client(BaseClient):
                     if result
                 ]
 
-            cluster_image_results = (
-                __obtain_frame_data(
-                    cluster_frames[0],
-                    ["cluster_id", "start_timestamp_seconds", "end_timestamp_seconds"],
-                )
-                if cluster_frames
-                else None
-            )
-
             extracted_image_results = (
                 __obtain_frame_data(
                     extracted_frames,
@@ -247,7 +234,6 @@ class Client(BaseClient):
             return RHEEDVideoResult(
                 data_id=data_id,
                 timeseries_data=timeseries_data,
-                cluster_image_data=cluster_image_results,
                 snapshot_image_data=extracted_image_results,
                 rotating=data_type == "rheed_rotating",
             )
@@ -256,26 +242,23 @@ class Client(BaseClient):
 
     def _get_rheed_timeseries_result(self, data_id: str):
         # Get rheed video timeseries results
-        plot_data = self._get(sub_url=f"clusters/plot_data/{data_id}")
-        timeseries_data = DataFrame(plot_data)
-        timeseries_data["cluster_std"] = (
-            timeseries_data["cluster_mean_plus_std"] - timeseries_data["cluster_id"]
-        )
-        timeseries_data["first_order_intensity"] = (
-            timeseries_data["region_1_intensity"]
-            + timeseries_data["region_2_intensity"]
-        ) / 2.0
+        plot_data = self._get(sub_url=f"rheed/timeseries/{data_id}/")
 
-        timeseries_data = timeseries_data.drop(
-            columns=[
-                "cluster_mean",
-                "cluster_cdf",
-                "region_1_intensity",
-                "region_2_intensity",
-                "cluster_mean_plus_std",
-                "cluster_mean_minus_std",
-            ]
-        )
+        if plot_data is None:
+            return DataFrame(None)
+
+        timeseries_data = DataFrame({"frame_number": []})
+
+        for angle_data in plot_data["series_by_angle"]:  # type: ignore # noqa: PGH003
+            temp_df = DataFrame(angle_data["series"])
+            temp_df["Angle"] = angle_data["angle"]
+
+            timeseries_data = merge(
+                timeseries_data,
+                temp_df,
+                how="outer",
+                on="frame_number",
+            )
 
         column_mapping = {
             "real_time_seconds": "Time",
@@ -295,15 +278,21 @@ class Client(BaseClient):
         # Get pattern graph data
         if metadata is None:
             metadata = {}
-        graph_data = self._get(sub_url=f"spots/{data_id}")
+
+        graph_data = self._get(sub_url=f"rheed/images/{data_id}/fingerprint")
+
         graph = (
-            nx.node_link_graph(graph_data, source="start_node", target="end_node")
+            nx.node_link_graph(
+                graph_data["fingerprint"],  # type: ignore #noqa: PGH003
+                source="start_node",
+                target="end_node",
+            )
             if graph_data
             else None
         )
 
         # Get raw and processed image data
-        image_download: dict[str, str] = self._get(  # type: ignore  # noqa: PGH003
+        image_download: dict[str, str] | None = self._get(  # type: ignore  # noqa: PGH003
             sub_url=f"data_entries/processed_data/{data_id}",
             params={"return_as": "url-download"},
         )
