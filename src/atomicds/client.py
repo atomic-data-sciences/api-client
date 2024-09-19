@@ -271,9 +271,8 @@ class Client(BaseClient):
         }
 
         timeseries_data = timeseries_data.rename(columns=column_mapping)
-        timeseries_data = timeseries_data.set_index(["Angle", "Frame Number"])
 
-        return timeseries_data
+        return timeseries_data.set_index(["Angle", "Frame Number"])
 
     def _get_rheed_image_result(self, data_id: str, metadata: dict | None = None):
         # Get pattern graph data
