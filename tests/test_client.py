@@ -33,9 +33,12 @@ def test_generic_search(client: Client):
             "Growth Length",
             "Tags",
             "Owner",
+            "Physical Sample ID",
+            "Physical Sample Name",
+            "Sample Notes"
         ]
     )
-    assert len(set(orig_data.keys().values).intersection(column_names))
+    assert not len(set(orig_data.keys().values) - column_names)
 
 
 def test_keyword_search(client: Client):
