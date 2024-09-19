@@ -270,8 +270,8 @@ class Client(BaseClient):
             "lattice_spacing": "Lattice Spacing",
         }
 
-        timeseries_data.rename(columns=column_mapping, inplace=True)
-        timeseries_data.set_index(["Angle", "Frame Number"], inplace=True)
+        timeseries_data = timeseries_data.rename(columns=column_mapping)
+        timeseries_data = timeseries_data.set_index(["Angle", "Frame Number"])
 
         return timeseries_data
 
