@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Literal
 
 import networkx as nx
-from pandas import DataFrame, merge
+from pandas import DataFrame, concat
 from PIL import Image
 from tqdm.auto import tqdm
 
@@ -247,29 +247,28 @@ class Client(BaseClient):
         if plot_data is None:
             return DataFrame(None)
 
-        timeseries_data = DataFrame({"frame_number": []})
+        timeseries_dfs = []
 
         for angle_data in plot_data["series_by_angle"]:  # type: ignore # noqa: PGH003
             temp_df = DataFrame(angle_data["series"])
             temp_df["Angle"] = angle_data["angle"]
+            timeseries_dfs.append(temp_df)
 
-            timeseries_data = merge(
-                timeseries_data,
-                temp_df,
-                how="outer",
-                on="frame_number",
-            )
+        timeseries_data = concat(timeseries_dfs, axis=0)
+        timeseries_data.set_index(["Angle", "frame_number"], inplace=True)
 
         column_mapping = {
-            "real_time_seconds": "Time",
+            "time_seconds": "Time",
+            "frame_number": "Frame Number",
             "cluster_id": "Cluster ID",
             "cluster_std": "Cluster ID Uncertainty",
             "relative_strain": "Relative Strain",
             "cumulative_strain": "Cumulative Strain",
-            "oscillation_period_seconds": "Oscillation Period",
+            "oscillation_period": "Oscillation Period",
             "spot_count": "Diffraction Spot Count",
             "first_order_intensity": "First Order Intensity",
-            "region_0_intensity": "Specular Intensity",
+            "specular_intensity": "Specular Intensity",
+            "lattice_spacing": "Lattic Spacing",
         }
 
         return timeseries_data.rename(columns=column_mapping)
