@@ -255,7 +255,6 @@ class Client(BaseClient):
             timeseries_dfs.append(temp_df)
 
         timeseries_data = concat(timeseries_dfs, axis=0)
-        timeseries_data.set_index(["Angle", "frame_number"], inplace=True)
 
         column_mapping = {
             "time_seconds": "Time",
@@ -271,7 +270,10 @@ class Client(BaseClient):
             "lattice_spacing": "Lattic Spacing",
         }
 
-        return timeseries_data.rename(columns=column_mapping)
+        timeseries_data.rename(columns=column_mapping, inplace=True)
+        timeseries_data.set_index(["Angle", "Frame Number"], inplace=True)
+        
+        return timeseries_data
 
     def _get_rheed_image_result(self, data_id: str, metadata: dict | None = None):
         # Get pattern graph data
