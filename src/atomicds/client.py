@@ -267,12 +267,12 @@ class Client(BaseClient):
             "spot_count": "Diffraction Spot Count",
             "first_order_intensity": "First Order Intensity",
             "specular_intensity": "Specular Intensity",
-            "lattice_spacing": "Lattic Spacing",
+            "lattice_spacing": "Lattice Spacing",
         }
 
         timeseries_data.rename(columns=column_mapping, inplace=True)
         timeseries_data.set_index(["Angle", "Frame Number"], inplace=True)
-        
+
         return timeseries_data
 
     def _get_rheed_image_result(self, data_id: str, metadata: dict | None = None):
