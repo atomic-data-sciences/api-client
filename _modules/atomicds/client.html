@@ -39,7 +39,7 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Literal</span>
 
 <span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
-<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">concat</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
 <span class="kn">from</span> <span class="nn">tqdm.auto</span> <span class="kn">import</span> <span class="n">tqdm</span>
 
@@ -132,7 +132,7 @@
             <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">column_mapping</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;uuid&quot;</span><span class="p">:</span> <span class="s2">&quot;Data ID&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;data_id&quot;</span><span class="p">:</span> <span class="s2">&quot;Data ID&quot;</span><span class="p">,</span>
             <span class="s2">&quot;upload_datetime&quot;</span><span class="p">:</span> <span class="s2">&quot;Upload Datetime&quot;</span><span class="p">,</span>
             <span class="s2">&quot;last_accessed_datetime&quot;</span><span class="p">:</span> <span class="s2">&quot;Last Accessed Datetime&quot;</span><span class="p">,</span>
             <span class="s2">&quot;char_source_type&quot;</span><span class="p">:</span> <span class="s2">&quot;Type&quot;</span><span class="p">,</span>
@@ -195,7 +195,7 @@
 
         <span class="n">kwargs_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
-            <span class="n">data_id</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;uuid&quot;</span><span class="p">]</span>
+            <span class="n">data_id</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;data_id&quot;</span><span class="p">]</span>
             <span class="n">data_type</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;char_source_type&quot;</span><span class="p">]</span>
             <span class="n">kwargs_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;data_id&quot;</span><span class="p">:</span> <span class="n">data_id</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="n">data_type</span><span class="p">})</span>
 
@@ -240,10 +240,6 @@
             <span class="n">timeseries_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_rheed_timeseries_result</span><span class="p">(</span><span class="n">data_id</span><span class="p">)</span>
 
             <span class="c1"># Get cluster and extracted image data</span>
-            <span class="n">cluster_frames</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
-                <span class="n">sub_url</span><span class="o">=</span><span class="s2">&quot;data_entries/video_cluster_frames/&quot;</span><span class="p">,</span>
-                <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;data_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">data_id</span><span class="p">]},</span>
-            <span class="p">)</span>
 
             <span class="n">extracted_frames</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
                 <span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;data_entries/video_single_frames/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
@@ -271,15 +267,6 @@
                     <span class="k">if</span> <span class="n">result</span>
                 <span class="p">]</span>
 
-            <span class="n">cluster_image_results</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">__obtain_frame_data</span><span class="p">(</span>
-                    <span class="n">cluster_frames</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-                    <span class="p">[</span><span class="s2">&quot;cluster_id&quot;</span><span class="p">,</span> <span class="s2">&quot;start_timestamp_seconds&quot;</span><span class="p">,</span> <span class="s2">&quot;end_timestamp_seconds&quot;</span><span class="p">],</span>
-                <span class="p">)</span>
-                <span class="k">if</span> <span class="n">cluster_frames</span>
-                <span class="k">else</span> <span class="kc">None</span>
-            <span class="p">)</span>
-
             <span class="n">extracted_image_results</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">__obtain_frame_data</span><span class="p">(</span>
                     <span class="n">extracted_frames</span><span class="p">,</span>
@@ -291,7 +278,6 @@
             <span class="k">return</span> <span class="n">RHEEDVideoResult</span><span class="p">(</span>
                 <span class="n">data_id</span><span class="o">=</span><span class="n">data_id</span><span class="p">,</span>
                 <span class="n">timeseries_data</span><span class="o">=</span><span class="n">timeseries_data</span><span class="p">,</span>
-                <span class="n">cluster_image_data</span><span class="o">=</span><span class="n">cluster_image_results</span><span class="p">,</span>
                 <span class="n">snapshot_image_data</span><span class="o">=</span><span class="n">extracted_image_results</span><span class="p">,</span>
                 <span class="n">rotating</span><span class="o">=</span><span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;rheed_rotating&quot;</span><span class="p">,</span>
             <span class="p">)</span>
@@ -300,54 +286,59 @@
 
     <span class="k">def</span> <span class="nf">_get_rheed_timeseries_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="c1"># Get rheed video timeseries results</span>
-        <span class="n">plot_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;clusters/plot_data/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">(</span><span class="n">plot_data</span><span class="p">)</span>
-        <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;cluster_std&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;cluster_mean_plus_std&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;cluster_id&quot;</span><span class="p">]</span>
-        <span class="p">)</span>
-        <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;first_order_intensity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;region_1_intensity&quot;</span><span class="p">]</span>
-            <span class="o">+</span> <span class="n">timeseries_data</span><span class="p">[</span><span class="s2">&quot;region_2_intensity&quot;</span><span class="p">]</span>
-        <span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>
+        <span class="n">plot_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;rheed/timeseries/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">)</span>
 
-        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
-            <span class="n">columns</span><span class="o">=</span><span class="p">[</span>
-                <span class="s2">&quot;cluster_mean&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;cluster_cdf&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;region_1_intensity&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;region_2_intensity&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;cluster_mean_plus_std&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;cluster_mean_minus_std&quot;</span><span class="p">,</span>
-            <span class="p">]</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">plot_data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">DataFrame</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">timeseries_dfs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">angle_data</span> <span class="ow">in</span> <span class="n">plot_data</span><span class="p">[</span><span class="s2">&quot;series_by_angle&quot;</span><span class="p">]:</span>  <span class="c1"># type: ignore # noqa: PGH003</span>
+            <span class="n">temp_df</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">(</span><span class="n">angle_data</span><span class="p">[</span><span class="s2">&quot;series&quot;</span><span class="p">])</span>
+            <span class="n">temp_df</span><span class="p">[</span><span class="s2">&quot;Angle&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">angle_data</span><span class="p">[</span><span class="s2">&quot;angle&quot;</span><span class="p">]</span>
+            <span class="n">timeseries_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">temp_df</span><span class="p">)</span>
+
+        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">concat</span><span class="p">(</span><span class="n">timeseries_dfs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="n">column_mapping</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;real_time_seconds&quot;</span><span class="p">:</span> <span class="s2">&quot;Time&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;time_seconds&quot;</span><span class="p">:</span> <span class="s2">&quot;Time&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;frame_number&quot;</span><span class="p">:</span> <span class="s2">&quot;Frame Number&quot;</span><span class="p">,</span>
             <span class="s2">&quot;cluster_id&quot;</span><span class="p">:</span> <span class="s2">&quot;Cluster ID&quot;</span><span class="p">,</span>
             <span class="s2">&quot;cluster_std&quot;</span><span class="p">:</span> <span class="s2">&quot;Cluster ID Uncertainty&quot;</span><span class="p">,</span>
             <span class="s2">&quot;relative_strain&quot;</span><span class="p">:</span> <span class="s2">&quot;Relative Strain&quot;</span><span class="p">,</span>
             <span class="s2">&quot;cumulative_strain&quot;</span><span class="p">:</span> <span class="s2">&quot;Cumulative Strain&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;oscillation_period_seconds&quot;</span><span class="p">:</span> <span class="s2">&quot;Oscillation Period&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;oscillation_period&quot;</span><span class="p">:</span> <span class="s2">&quot;Oscillation Period&quot;</span><span class="p">,</span>
             <span class="s2">&quot;spot_count&quot;</span><span class="p">:</span> <span class="s2">&quot;Diffraction Spot Count&quot;</span><span class="p">,</span>
             <span class="s2">&quot;first_order_intensity&quot;</span><span class="p">:</span> <span class="s2">&quot;First Order Intensity&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;region_0_intensity&quot;</span><span class="p">:</span> <span class="s2">&quot;Specular Intensity&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;specular_intensity&quot;</span><span class="p">:</span> <span class="s2">&quot;Specular Intensity&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;lattice_spacing&quot;</span><span class="p">:</span> <span class="s2">&quot;Lattice Spacing&quot;</span><span class="p">,</span>
         <span class="p">}</span>
 
-        <span class="k">return</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_mapping</span><span class="p">)</span>
+        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_mapping</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s2">&quot;Angle&quot;</span><span class="p">,</span> <span class="s2">&quot;Frame Number&quot;</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">_get_rheed_image_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="c1"># Get pattern graph data</span>
         <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">graph_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;spots/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">graph_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;rheed/images/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">/fingerprint&quot;</span><span class="p">)</span>
         <span class="n">graph</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">nx</span><span class="o">.</span><span class="n">node_link_graph</span><span class="p">(</span><span class="n">graph_data</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;start_node&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;end_node&quot;</span><span class="p">)</span>
+            <span class="n">nx</span><span class="o">.</span><span class="n">node_link_graph</span><span class="p">(</span>
+                <span class="n">graph_data</span><span class="p">[</span><span class="s2">&quot;fingerprint&quot;</span><span class="p">],</span>  <span class="c1"># type: ignore #noqa: PGH003</span>
+                <span class="n">source</span><span class="o">=</span><span class="s2">&quot;start_id&quot;</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="s2">&quot;end_id&quot;</span><span class="p">,</span>
+                <span class="n">link</span><span class="o">=</span><span class="s2">&quot;horizontal_distances&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
             <span class="k">if</span> <span class="n">graph_data</span>
             <span class="k">else</span> <span class="kc">None</span>
         <span class="p">)</span>
-
+        <span class="n">processed_data_id</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">graph_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;processed_data_id&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">graph_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">data_id</span>  <span class="c1"># type: ignore #noqa: PGH003</span>
+        <span class="p">)</span>
         <span class="c1"># Get raw and processed image data</span>
-        <span class="n">image_download</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+        <span class="n">image_download</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
             <span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;data_entries/processed_data/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;return_as&quot;</span><span class="p">:</span> <span class="s2">&quot;url-download&quot;</span><span class="p">},</span>
         <span class="p">)</span>
@@ -364,6 +355,7 @@
 
         <span class="k">return</span> <span class="n">RHEEDImageResult</span><span class="p">(</span>
             <span class="n">data_id</span><span class="o">=</span><span class="n">data_id</span><span class="p">,</span>
+            <span class="n">processed_data_id</span><span class="o">=</span><span class="n">processed_data_id</span><span class="p">,</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
             <span class="n">processed_image</span><span class="o">=</span><span class="n">image_data</span><span class="p">,</span>
             <span class="n">pattern_graph</span><span class="o">=</span><span class="n">graph</span><span class="p">,</span>
             <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
