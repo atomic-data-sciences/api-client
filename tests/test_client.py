@@ -37,7 +37,7 @@ def test_generic_search(client: Client):
             "Owner",
             "Physical Sample ID",
             "Physical Sample Name",
-            "Sample Notes"
+            "Sample Notes",
         ]
     )
     assert not len(set(orig_data.keys().values) - column_names)
@@ -106,8 +106,8 @@ def test_get(client: Client):
 
     results = client.get(data_ids=data_ids)
     data_types = set([type(result) for result in results])
-    
-    # Check columns of rheed_stationary/rotating 
+
+    # Check columns of rheed_stationary/rotating
     column_names = set(
         [
             "Relative Strain",
@@ -117,7 +117,7 @@ def test_get(client: Client):
             "Oscillation Period",
             "Specular Intensity",
             "First Order Intensity",
-            "Time"
+            "Time",
         ]
     )
 
