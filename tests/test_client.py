@@ -125,7 +125,6 @@ def test_get(client: Client):
         if isinstance(result, RHEEDVideoResult):
             assert not len(set(result.timeseries_data.keys().values) - column_names)
             print(result.timeseries_data)
-            print(result.timeseries_data.index.names)
             assert result.timeseries_data.index.names == ["Angle", "Frame Number"]
 
     assert len(data_types) == 3
