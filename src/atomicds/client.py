@@ -280,17 +280,19 @@ class Client(BaseClient):
             metadata = {}
 
         graph_data = self._get(sub_url=f"rheed/images/{data_id}/fingerprint")
-
         graph = (
             nx.node_link_graph(
                 graph_data["fingerprint"],  # type: ignore #noqa: PGH003
-                source="start_node",
-                target="end_node",
+                source="start_id",
+                target="end_id",
+                link="horizontal_distances",
             )
             if graph_data
             else None
         )
-
+        processed_data_id = (
+            graph_data.get("processed_data_id") if graph_data is not None else data_id  # type: ignore #noqa: PGH003
+        )
         # Get raw and processed image data
         image_download: dict[str, str] | None = self._get(  # type: ignore  # noqa: PGH003
             sub_url=f"data_entries/processed_data/{data_id}",
@@ -309,6 +311,7 @@ class Client(BaseClient):
 
         return RHEEDImageResult(
             data_id=data_id,
+            processed_data_id=processed_data_id,  # type: ignore  # noqa: PGH003
             processed_image=image_data,
             pattern_graph=graph,
             metadata=metadata,

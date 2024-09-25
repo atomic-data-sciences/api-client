@@ -23,6 +23,7 @@ class RHEEDImageResult(MSONable):
     def __init__(
         self,
         data_id: UUID | str,
+        processed_data_id: UUID | str,
         processed_image: Image,
         pattern_graph: Graph | None,
         metadata: dict | None = None,
@@ -31,20 +32,13 @@ class RHEEDImageResult(MSONable):
 
         Args:
             data_id (UUID | str): Data ID for the entry in the data catalogue.
+            processed_data_id (UUID | str): Processed data ID for the entry in the catalogue.
             processed_image (Image): Processed image data in a PIL Image format.
             pattern_graph (Graph | None): NetworkX Graph object for the extracted diffraction pattern.
             metadata (dict): Generic metadata (e.g. timestamp, cluster_id, etc...).
         """
 
         metadata = metadata or {}
-
-        processed_data_id = None  # type: ignore  # noqa: PGH003
-
-        if pattern_graph is not None:
-            min_node_index: int = min(pattern_graph.nodes(), key=lambda x: int(x))
-            processed_data_id: str = pattern_graph.nodes(data=True)[min_node_index][  # type: ignore  # noqa: PGH003
-                "data_id"
-            ]
 
         self.data_id = data_id
         self.processed_image = processed_image
@@ -382,9 +376,7 @@ class RHEEDImageResult(MSONable):
                 x,
                 new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
                 new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
-            )[
-                "counts"
-            ]
+            )["counts"]
 
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
