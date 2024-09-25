@@ -100,7 +100,7 @@ def test_get(client: Client):
     data_ids = []
 
     for data_type in data_types:
-        data = client.search(data_type=data_type)  # type: ignore
+        data = client.search(data_type=data_type, include_organization_data=False)  # type: ignore
         data_id = data["Data ID"].values[0] if len(data["Data ID"].values) else None
         data_ids.append(data_id)
 
@@ -124,7 +124,6 @@ def test_get(client: Client):
     for result in results:
         if isinstance(result, RHEEDVideoResult):
             assert not len(set(result.timeseries_data.keys().values) - column_names)
-            print(result.timeseries_data)
             assert result.timeseries_data.index.names == ["Angle", "Frame Number"]
 
     assert len(data_types) == 3
