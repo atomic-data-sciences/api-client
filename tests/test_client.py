@@ -4,6 +4,8 @@ from atomicds import Client
 from datetime import datetime
 from unittest import mock
 
+from atomicds.results import RHEEDVideoResult
+
 
 @pytest.fixture
 def client():
@@ -33,9 +35,12 @@ def test_generic_search(client: Client):
             "Growth Length",
             "Tags",
             "Owner",
+            "Physical Sample ID",
+            "Physical Sample Name",
+            "Sample Notes",
         ]
     )
-    assert len(set(orig_data.keys().values).intersection(column_names))
+    assert not len(set(orig_data.keys().values) - column_names)
 
 
 def test_keyword_search(client: Client):
@@ -95,10 +100,30 @@ def test_get(client: Client):
     data_ids = []
 
     for data_type in data_types:
-        data = client.search(data_type=data_type)  # type: ignore
+        data = client.search(data_type=data_type, include_organization_data=False)  # type: ignore
         data_id = data["Data ID"].values[0] if len(data["Data ID"].values) else None
         data_ids.append(data_id)
 
     results = client.get(data_ids=data_ids)
     data_types = set([type(result) for result in results])
+
+    # Check columns of rheed_stationary/rotating
+    column_names = set(
+        [
+            "Relative Strain",
+            "Cumulative Strain",
+            "Lattice Spacing",
+            "Diffraction Spot Count",
+            "Oscillation Period",
+            "Specular Intensity",
+            "First Order Intensity",
+            "Time",
+        ]
+    )
+
+    for result in results:
+        if isinstance(result, RHEEDVideoResult):
+            assert not len(set(result.timeseries_data.keys().values) - column_names)
+            assert result.timeseries_data.index.names == ["Angle", "Frame Number"]
+
     assert len(data_types) == 3

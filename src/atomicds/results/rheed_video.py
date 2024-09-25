@@ -15,7 +15,6 @@ class RHEEDVideoResult(MSONable):
         self,
         data_id: UUID | str,
         timeseries_data: DataFrame,
-        cluster_image_data: list[RHEEDImageResult] | None,
         snapshot_image_data: list[RHEEDImageResult] | None,
         rotating: bool,
     ):
@@ -25,15 +24,12 @@ class RHEEDVideoResult(MSONable):
             data_id (UUID | str): Data ID for the entry in the data catalogue.
             timeseries_data (DataFrame): Pandas DataFrame with timeseries data associated with the video.
                 Includes cluster assignments, specular intensity, strain, etc...
-            cluster_image_data (list[RHEEDImageResult]): List of RHEEDImageResult objects containing data for
-                images associated with each identified cluster in the video.
             snapshot_image_data (list[RHEEDImageResult]): List of RHEEDImageResult objects containing data for
                 images associated with each user extracted snapshot in the video.
             rotating (bool): Whether the video was taken of a rotating stage.
         """
         self.data_id = data_id
         self.timeseries_data = timeseries_data
-        self.cluster_image_data = cluster_image_data
         self.snapshot_image_data = snapshot_image_data
         self.rotating = rotating
 
