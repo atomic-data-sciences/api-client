@@ -293,6 +293,10 @@ class Client(BaseClient):
         processed_data_id = (
             graph_data.get("processed_data_id") if graph_data is not None else data_id  # type: ignore #noqa: PGH003
         )
+
+        # Get mask data
+        mask_data = self._get(sub_url=f"rheed/images/{data_id}/fingerprint")
+
         # Get raw and processed image data
         image_download: dict[str, str] | None = self._get(  # type: ignore  # noqa: PGH003
             sub_url=f"data_entries/processed_data/{data_id}",
