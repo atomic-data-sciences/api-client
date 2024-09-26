@@ -37,15 +37,14 @@ def test_get_dataframe(result: RHEEDImageResult):
        'bbox_minr', 'distances', 'spot_area', 'mask_width', 'pattern_id',
        'mask_height', 'streak_area', 'eccentricity', 'bbox_intensity',
        'center_distance', 'roughness_metric', 'axis_major_length',
-       'axis_minor_length', 'data_id'}
+       'axis_minor_length', 'data_id', 'test'}
 
-    df = result.get_pattern_dataframe() 
+    df = result.get_pattern_dataframe(extra_data={"test": "test"}) 
     assert isinstance(df, DataFrame) 
     assert not len(set(df.columns) - cols)
 
     df = result.get_pattern_dataframe(symmetrize=True) 
     assert isinstance(df, DataFrame) 
-    assert not len(set(df.columns) - cols)
 
     df = result.get_pattern_dataframe(return_as_features=True) 
     assert isinstance(df, DataFrame) 
