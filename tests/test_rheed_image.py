@@ -2,12 +2,9 @@
 from pandas import DataFrame
 import pytest
 from atomicds import Client
-from datetime import datetime
-from unittest import mock
 from .conftest import ResultIDs
-from atomicds.results import RHEEDVideoResult, RHEEDImageResult
+from atomicds.results import RHEEDImageResult
 from PIL.Image import Image
-from pandas import DataFrame
 
 @pytest.fixture
 def client():
