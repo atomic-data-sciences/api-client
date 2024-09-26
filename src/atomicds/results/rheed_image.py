@@ -13,6 +13,7 @@ from PIL import Image as PILImage
 from PIL import ImageDraw
 from PIL.Image import Image
 
+from atomicds.client import mask_util
 from atomicds.core import boxes_overlap, generate_graph_from_nodes
 
 tp.quiet()
@@ -232,9 +233,13 @@ class RHEEDImageResult(MSONable):
             node_df, _ = self._symmetrize(node_df)
 
         extra_data_df = pd.DataFrame.from_records(
-            [{"data_id": self.processed_data_id} | extra_data]
+            [
+                {"data_id": self.data_id, "processed_data_id": self.processed_data_id}
+                | extra_data
+            ]
         )
 
+        node_df["data_id"] = self.data_id
         feature_df: pd.DataFrame = node_df.pivot_table(
             index="data_id", columns="node_id", values=node_feature_cols
         )
@@ -265,7 +270,7 @@ class RHEEDImageResult(MSONable):
         ) -> str | bytes:
             """Reflect a list of RLE masks across the vertical axis"""
 
-            mask_array: np.ndarray = mask.decode(
+            mask_array: np.ndarray = mask_util.decode(
                 {"counts": mask_obj, "size": (height, width)}  # type: ignore  # noqa: PGH003
             )
             origin = int(np.round(origin, 0))
@@ -282,16 +287,16 @@ class RHEEDImageResult(MSONable):
                         mask_array[:, i].copy(),
                     )
 
-            return mask.encode(np.asfortranarray(reflected_array))["counts"]
+            return mask_util.encode(np.asfortranarray(reflected_array))["counts"]
 
         def merge_masks(masks: list[str], height, width) -> str:
             """Merge a list of RLE masks using logical OR"""
             mask_objs = [
-                mask.decode({"counts": mm, "size": (height, width)})  # type: ignore  # noqa: PGH003
+                mask_util.decode({"counts": mm, "size": (height, width)})  # type: ignore  # noqa: PGH003
                 for mm in masks
             ]
             merged_mask = np.asfortranarray(np.logical_or.reduce(mask_objs))
-            return mask.encode(merged_mask)  # type: ignore  # noqa: PGH003
+            return mask_util.encode(merged_mask)  # type: ignore  # noqa: PGH003
 
         def merge_overlaps(node_df):
             """Merge overlapping nodes in a DataFrame object. Use recursively until no overlaps remain."""
@@ -321,8 +326,6 @@ class RHEEDImageResult(MSONable):
                 "mask_rle": lambda x: x.tolist(),
                 "mask_width": lambda x: x.iloc[0],
                 "mask_height": lambda x: x.iloc[0],
-                "data_id": lambda x: x.iloc[0],
-                "oscillation_period_seconds": "mean",
                 "eccentricity": "mean",
                 "axis_major_length": "mean",
                 "axis_minor_length": "mean",
@@ -330,6 +333,7 @@ class RHEEDImageResult(MSONable):
                 "spot_area": "mean",
                 "streak_area": "mean",
                 "roughness_metric": "mean",
+                "distances": "mean",
             }
 
             new_df = pd.DataFrame()
@@ -443,8 +447,6 @@ class RHEEDImageResult(MSONable):
         if node_df.empty:
             return node_df
 
-        node_df = node_df.drop(columns=["last_updated", "version"])
-
         new_df = merge_overlaps(node_df)
         while len(new_df) != len(node_df):
             node_df = new_df.copy(deep=True)  # type: ignore  # noqa: PGH003
@@ -536,7 +538,6 @@ class RHEEDImageCollection(MSONable):
                 for rheed_image, extra_data in zip(self.rheed_images, extra_iter)
             ]
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
-            # node_df = node_df.drop(columns=["roughness_metric"])
 
         labels, _ = pd.factorize(node_df["data_id"])
         node_df["pattern_id"] = labels

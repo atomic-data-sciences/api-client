@@ -3,7 +3,7 @@ import pytest
 from atomicds import Client
 from datetime import datetime
 from unittest import mock
-
+from .conftest import ResultIDs
 from atomicds.results import RHEEDVideoResult
 
 
@@ -95,6 +95,7 @@ def test_last_accessed_datetime_search(client: Client):
     assert len(data["Last Accessed Datetime"].values)
 
 
+@pytest.mark.order(1)
 def test_get(client: Client):
     data_types = ["rheed_image", "rheed_stationary", "rheed_rotating", "xps"]
     data_ids = []
@@ -103,6 +104,8 @@ def test_get(client: Client):
         data = client.search(data_type=data_type, include_organization_data=False)  # type: ignore
         data_id = data["Data ID"].values[0] if len(data["Data ID"].values) else None
         data_ids.append(data_id)
+        
+        setattr(ResultIDs, data_type, data_id)
 
     results = client.get(data_ids=data_ids)
     data_types = set([type(result) for result in results])
