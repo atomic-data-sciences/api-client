@@ -20,7 +20,6 @@ atomicds.results.rheed\_video.RHEEDVideoResult
       ~RHEEDVideoResult.as_dict
       ~RHEEDVideoResult.from_dict
       ~RHEEDVideoResult.get_partial_json
-      ~RHEEDVideoResult.get_plot
       ~RHEEDVideoResult.load
       ~RHEEDVideoResult.save
       ~RHEEDVideoResult.to_json

@@ -41,6 +41,7 @@
 <span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
 <span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">concat</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">from</span> <span class="nn">pycocotools</span> <span class="kn">import</span> <span class="n">mask</span> <span class="k">as</span> <span class="n">mask_util</span>
 <span class="kn">from</span> <span class="nn">tqdm.auto</span> <span class="kn">import</span> <span class="n">tqdm</span>
 
 <span class="kn">from</span> <span class="nn">atomicds.core</span> <span class="kn">import</span> <span class="n">BaseClient</span>
@@ -337,6 +338,22 @@
         <span class="n">processed_data_id</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">graph_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;processed_data_id&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">graph_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">data_id</span>  <span class="c1"># type: ignore #noqa: PGH003</span>
         <span class="p">)</span>
+
+        <span class="c1"># Get mask data</span>
+        <span class="n">mask_data</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;rheed/images/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">/mask&quot;</span><span class="p">)</span>  <span class="c1"># type: ignore  #noqa: PGH003</span>
+        <span class="n">mask_rle</span> <span class="o">=</span> <span class="n">mask_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mask_rle&quot;</span><span class="p">)</span>
+        <span class="n">mask_array</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">mask_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">mask_rle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask_height</span> <span class="o">=</span> <span class="n">mask_data</span><span class="p">[</span><span class="s2">&quot;mask_height&quot;</span><span class="p">]</span>
+            <span class="n">mask_width</span> <span class="o">=</span> <span class="n">mask_data</span><span class="p">[</span><span class="s2">&quot;mask_width&quot;</span><span class="p">]</span>
+
+            <span class="n">mask_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;counts&quot;</span><span class="p">:</span> <span class="n">mask_rle</span><span class="p">,</span>
+                <span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">mask_height</span><span class="p">,</span> <span class="n">mask_width</span><span class="p">),</span>
+            <span class="p">}</span>
+            <span class="n">mask_array</span> <span class="o">=</span> <span class="n">mask_util</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">mask_dict</span><span class="p">)</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
+
         <span class="c1"># Get raw and processed image data</span>
         <span class="n">image_download</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
             <span class="n">sub_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;data_entries/processed_data/</span><span class="si">{</span><span class="n">data_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
@@ -357,6 +374,7 @@
             <span class="n">data_id</span><span class="o">=</span><span class="n">data_id</span><span class="p">,</span>
             <span class="n">processed_data_id</span><span class="o">=</span><span class="n">processed_data_id</span><span class="p">,</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
             <span class="n">processed_image</span><span class="o">=</span><span class="n">image_data</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">=</span><span class="n">mask_array</span><span class="p">,</span>
             <span class="n">pattern_graph</span><span class="o">=</span><span class="n">graph</span><span class="p">,</span>
             <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
         <span class="p">)</span></div>
