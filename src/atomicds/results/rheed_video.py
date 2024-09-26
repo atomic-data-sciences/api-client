@@ -33,6 +33,8 @@ class RHEEDVideoResult(MSONable):
         self.snapshot_image_data = snapshot_image_data
         self.rotating = rotating
 
+    # NOTE: This is temporarily deprecated
+    #
     # def get_plot(self) -> Figure:
     #     """Get plot of timeseries data associated with this RHEED video
     #
