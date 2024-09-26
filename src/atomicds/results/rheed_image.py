@@ -8,11 +8,12 @@ import pandas as pd
 import trackpy as tp
 from monty.json import MSONable
 from networkx import Graph
+from numpy.typing import NDArray
 from PIL import Image as PILImage
 from PIL import ImageDraw
 from PIL.Image import Image
-from pycocotools import mask
 
+from atomicds.client import mask_util
 from atomicds.core import boxes_overlap, generate_graph_from_nodes
 
 tp.quiet()
@@ -25,6 +26,7 @@ class RHEEDImageResult(MSONable):
         data_id: UUID | str,
         processed_data_id: UUID | str,
         processed_image: Image,
+        mask: NDArray | None,
         pattern_graph: Graph | None,
         metadata: dict | None = None,
     ):
@@ -34,6 +36,7 @@ class RHEEDImageResult(MSONable):
             data_id (UUID | str): Data ID for the entry in the data catalogue.
             processed_data_id (UUID | str): Processed data ID for the entry in the catalogue.
             processed_image (Image): Processed image data in a PIL Image format.
+            mask (NDArray | None): Array containing binary segmentation mask.
             pattern_graph (Graph | None): NetworkX Graph object for the extracted diffraction pattern.
             metadata (dict): Generic metadata (e.g. timestamp, cluster_id, etc...).
         """
@@ -41,9 +44,10 @@ class RHEEDImageResult(MSONable):
         metadata = metadata or {}
 
         self.data_id = data_id
-        self.processed_image = processed_image
-        self.pattern_graph = pattern_graph
         self.processed_data_id = processed_data_id
+        self.processed_image = processed_image
+        self.mask = mask
+        self.pattern_graph = pattern_graph
         self.metadata = metadata
 
     def get_plot(
@@ -70,26 +74,12 @@ class RHEEDImageResult(MSONable):
             node_df = pd.DataFrame.from_dict(
                 dict(self.pattern_graph.nodes(data=True)), orient="index"
             )
-            # node_df = node_df.drop(columns=["roughness_metric"])
             _, pattern_graph = self._symmetrize(node_df)
         else:
             pattern_graph = self.pattern_graph
 
         if pattern_graph:
-            masks = []
-            for node_id, node_data in pattern_graph.nodes.data():
-                if show_mask:
-                    mask_rle = node_data.get("mask_rle")
-                    mask_width = node_data.get("mask_width")
-                    mask_height = node_data.get("mask_height")
-
-                    if mask_rle and mask_width and mask_height:
-                        mask_dict = {
-                            "counts": mask_rle,
-                            "size": (mask_height, mask_width),
-                        }
-                        masks.append(mask.decode(mask_dict))  # type: ignore  # noqa: PGH003
-
+            for node_id, node_data in pattern_graph.nodes.data():  # type: ignore  # noqa: PGH003
                 if show_spot_nodes:
                     # Draw nodes
                     y = node_data.get("centroid_0")
@@ -116,13 +106,12 @@ class RHEEDImageResult(MSONable):
                             fill=(255, 255, 255, 255),
                         )
 
-            if show_mask:
-                total_mask = np.stack(masks, axis=0).sum(axis=0).squeeze()
-                overlay = np.zeros((*total_mask.shape, 4), dtype=np.uint8)
-                overlay[np.where(total_mask)] = [255, 0, 0, int(alpha * (255))]
+            if show_mask and self.mask is not None:
+                overlay = np.zeros((*self.mask.shape, 4), dtype=np.uint8)
+                overlay[np.where(self.mask)] = [255, 0, 0, int(alpha * (255))]
 
-                overlay = PILImage.fromarray(overlay)
-                image.paste(overlay, mask=overlay)
+                overlay_image = PILImage.fromarray(overlay)
+                image.paste(overlay_image, mask=overlay_image)
 
         return image
 
@@ -244,9 +233,13 @@ class RHEEDImageResult(MSONable):
             node_df, _ = self._symmetrize(node_df)
 
         extra_data_df = pd.DataFrame.from_records(
-            [{"data_id": self.processed_data_id} | extra_data]
+            [
+                {"data_id": self.data_id, "processed_data_id": self.processed_data_id}
+                | extra_data
+            ]
         )
 
+        node_df["data_id"] = self.data_id
         feature_df: pd.DataFrame = node_df.pivot_table(
             index="data_id", columns="node_id", values=node_feature_cols
         )
@@ -277,7 +270,7 @@ class RHEEDImageResult(MSONable):
         ) -> str | bytes:
             """Reflect a list of RLE masks across the vertical axis"""
 
-            mask_array: np.ndarray = mask.decode(
+            mask_array: np.ndarray = mask_util.decode(
                 {"counts": mask_obj, "size": (height, width)}  # type: ignore  # noqa: PGH003
             )
             origin = int(np.round(origin, 0))
@@ -294,16 +287,16 @@ class RHEEDImageResult(MSONable):
                         mask_array[:, i].copy(),
                     )
 
-            return mask.encode(np.asfortranarray(reflected_array))["counts"]
+            return mask_util.encode(np.asfortranarray(reflected_array))["counts"]
 
         def merge_masks(masks: list[str], height, width) -> str:
             """Merge a list of RLE masks using logical OR"""
             mask_objs = [
-                mask.decode({"counts": mm, "size": (height, width)})  # type: ignore  # noqa: PGH003
+                mask_util.decode({"counts": mm, "size": (height, width)})  # type: ignore  # noqa: PGH003
                 for mm in masks
             ]
             merged_mask = np.asfortranarray(np.logical_or.reduce(mask_objs))
-            return mask.encode(merged_mask)  # type: ignore  # noqa: PGH003
+            return mask_util.encode(merged_mask)  # type: ignore  # noqa: PGH003
 
         def merge_overlaps(node_df):
             """Merge overlapping nodes in a DataFrame object. Use recursively until no overlaps remain."""
@@ -333,8 +326,6 @@ class RHEEDImageResult(MSONable):
                 "mask_rle": lambda x: x.tolist(),
                 "mask_width": lambda x: x.iloc[0],
                 "mask_height": lambda x: x.iloc[0],
-                "data_id": lambda x: x.iloc[0],
-                "oscillation_period_seconds": "mean",
                 "eccentricity": "mean",
                 "axis_major_length": "mean",
                 "axis_minor_length": "mean",
@@ -342,6 +333,7 @@ class RHEEDImageResult(MSONable):
                 "spot_area": "mean",
                 "streak_area": "mean",
                 "roughness_metric": "mean",
+                "distances": "mean",
             }
 
             new_df = pd.DataFrame()
@@ -457,8 +449,6 @@ class RHEEDImageResult(MSONable):
         if node_df.empty:
             return node_df
 
-        node_df = node_df.drop(columns=["last_updated", "version"])
-
         new_df = merge_overlaps(node_df)
         while len(new_df) != len(node_df):
             node_df = new_df.copy(deep=True)  # type: ignore  # noqa: PGH003
@@ -550,7 +540,6 @@ class RHEEDImageCollection(MSONable):
                 for rheed_image, extra_data in zip(self.rheed_images, extra_iter)
             ]
             node_df = pd.concat(node_dfs, axis=0).reset_index(drop=True)
-            # node_df = node_df.drop(columns=["roughness_metric"])
 
         labels, _ = pd.factorize(node_df["data_id"])
         node_df["pattern_id"] = labels
