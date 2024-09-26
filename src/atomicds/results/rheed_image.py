@@ -110,8 +110,8 @@ class RHEEDImageResult(MSONable):
                 overlay = np.zeros((*self.mask.shape, 4), dtype=np.uint8)
                 overlay[np.where(self.mask)] = [255, 0, 0, int(alpha * (255))]
 
-                overlay = PILImage.fromarray(overlay)
-                image.paste(overlay, mask=overlay)
+                overlay_image = PILImage.fromarray(overlay)
+                image.paste(overlay_image, mask=overlay_image)
 
         return image
 
@@ -368,9 +368,7 @@ class RHEEDImageResult(MSONable):
                 x,
                 new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
                 new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
-            )[
-                "counts"
-            ]
+            )["counts"]
 
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
