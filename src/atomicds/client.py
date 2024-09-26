@@ -8,6 +8,7 @@ from typing import Literal
 import networkx as nx
 from pandas import DataFrame, concat
 from PIL import Image
+from pycocotools import mask as mask_util
 from tqdm.auto import tqdm
 
 from atomicds.core import BaseClient
@@ -295,7 +296,19 @@ class Client(BaseClient):
         )
 
         # Get mask data
-        mask_data = self._get(sub_url=f"rheed/images/{data_id}/fingerprint")
+        mask_data: dict = self._get(sub_url=f"rheed/images/{data_id}/mask")  # type: ignore  #noqa: PGH003
+        mask_rle = mask_data.get("mask_rle")
+        mask_array = None
+
+        if mask_data is not None and mask_rle is not None:
+            mask_height = mask_data["mask_height"]
+            mask_width = mask_data["mask_width"]
+
+            mask_dict = {
+                "counts": mask_rle,
+                "size": (mask_height, mask_width),
+            }
+            mask_array = mask_util.decode(mask_dict)  # type: ignore  # noqa: PGH003
 
         # Get raw and processed image data
         image_download: dict[str, str] | None = self._get(  # type: ignore  # noqa: PGH003
@@ -317,6 +330,7 @@ class Client(BaseClient):
             data_id=data_id,
             processed_data_id=processed_data_id,  # type: ignore  # noqa: PGH003
             processed_image=image_data,
+            mask=mask_array,
             pattern_graph=graph,
             metadata=metadata,
         )

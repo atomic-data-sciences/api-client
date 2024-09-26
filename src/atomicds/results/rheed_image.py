@@ -78,20 +78,7 @@ class RHEEDImageResult(MSONable):
             pattern_graph = self.pattern_graph
 
         if pattern_graph:
-            masks = []
             for node_id, node_data in pattern_graph.nodes.data():  # type: ignore  # noqa: PGH003
-                if show_mask:
-                    mask_rle = node_data.get("mask_rle")
-                    mask_width = node_data.get("mask_width")
-                    mask_height = node_data.get("mask_height")
-
-                    if mask_rle and mask_width and mask_height:
-                        mask_dict = {
-                            "counts": mask_rle,
-                            "size": (mask_height, mask_width),
-                        }
-                        masks.append(mask.decode(mask_dict))  # type: ignore  # noqa: PGH003
-
                 if show_spot_nodes:
                     # Draw nodes
                     y = node_data.get("centroid_0")
@@ -118,9 +105,9 @@ class RHEEDImageResult(MSONable):
                             fill=(255, 255, 255, 255),
                         )
 
-            if show_mask:
+            if show_mask and self.mask is not None:
                 overlay = np.zeros((*self.mask.shape, 4), dtype=np.uint8)
-                overlay[np.where(total_mask)] = [255, 0, 0, int(alpha * (255))]
+                overlay[np.where(self.mask)] = [255, 0, 0, int(alpha * (255))]
 
                 overlay = PILImage.fromarray(overlay)
                 image.paste(overlay, mask=overlay)
