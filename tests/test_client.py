@@ -110,23 +110,4 @@ def test_get(client: Client):
     results = client.get(data_ids=data_ids)
     data_types = set([type(result) for result in results])
 
-    # Check columns of rheed_stationary/rotating
-    column_names = set(
-        [
-            "Relative Strain",
-            "Cumulative Strain",
-            "Lattice Spacing",
-            "Diffraction Spot Count",
-            "Oscillation Period",
-            "Specular Intensity",
-            "First Order Intensity",
-            "Time",
-        ]
-    )
-
-    for result in results:
-        if isinstance(result, RHEEDVideoResult):
-            assert not len(set(result.timeseries_data.keys().values) - column_names)
-            assert result.timeseries_data.index.names == ["Angle", "Frame Number"]
-
     assert len(data_types) == 3

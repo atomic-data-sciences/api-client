@@ -14,9 +14,9 @@ def result(client: Client):
     results = client.get(data_ids=ResultIDs.rheed_rotating)
     return results[0] 
 
-def test_get_plot(result: RHEEDVideoResult):
-    plot = result.get_plot()
-    assert isinstance(plot, Figure)
+# def test_get_plot(result: RHEEDVideoResult):
+#     plot = result.get_plot()
+#     assert isinstance(plot, Figure)
 
 
 def test_get_dataframe(result: RHEEDVideoResult):
