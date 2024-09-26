@@ -50,6 +50,7 @@ dev = [
   "pytest",
   "pytest-httpserver",
   "pytest-cov",
+  "pytest-order",
   "ruff",
   "mypy",
   "types-requests",
