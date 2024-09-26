@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 from monty.json import MSONable
 from pandas import DataFrame
 

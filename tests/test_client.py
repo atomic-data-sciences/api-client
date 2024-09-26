@@ -104,7 +104,7 @@ def test_get(client: Client):
         data = client.search(data_type=data_type, include_organization_data=False)  # type: ignore
         data_id = data["Data ID"].values[0] if len(data["Data ID"].values) else None
         data_ids.append(data_id)
-        
+
         setattr(ResultIDs, data_type, data_id)
 
     results = client.get(data_ids=data_ids)

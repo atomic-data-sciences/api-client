@@ -5,14 +5,17 @@ from atomicds.results import RHEEDVideoResult
 from matplotlib.figure import Figure
 from pandas import DataFrame
 
+
 @pytest.fixture
 def client():
     return Client()
 
+
 @pytest.fixture
 def result(client: Client):
     results = client.get(data_ids=ResultIDs.rheed_rotating)
-    return results[0] 
+    return results[0]
+
 
 # def test_get_plot(result: RHEEDVideoResult):
 #     plot = result.get_plot()
