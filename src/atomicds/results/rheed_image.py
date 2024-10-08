@@ -368,9 +368,7 @@ class RHEEDImageResult(MSONable):
                 x,
                 new_df["mask_height"].iloc[0],  # type: ignore  # noqa: PGH003
                 new_df["mask_width"].iloc[0],  # type: ignore  # noqa: PGH003
-            )[
-                "counts"
-            ]
+            )["counts"]
 
             new_df = new_df.groupby("node_id").agg(agg_dict).reset_index(drop=True)
 
@@ -496,7 +494,11 @@ class RHEEDImageCollection(MSONable):
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
         self._rheed_images = [rheed_images[idx] for idx in sorted_indices]
-        self._extra_data = [self._extra_data[idx] for idx in sorted_indices]
+        self._extra_data = (
+            [self._extra_data[idx] for idx in sorted_indices]
+            if len(self._extra_data)
+            else self._extra_data
+        )
 
     @property
     def rheed_images(self):
