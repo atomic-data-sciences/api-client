@@ -496,7 +496,7 @@ class RHEEDImageCollection(MSONable):
                     rheed_image.pattern_graph.nodes[node]["pattern_id"] = idx
 
         self._rheed_images = [rheed_images[idx] for idx in sorted_indices]
-        self._extra_data = [self._extra_data[idx] for idx in sorted_indices]
+        self._extra_data = [self._extra_data[idx] for idx in sorted_indices] if self._extra_data else []
 
     @property
     def rheed_images(self):
